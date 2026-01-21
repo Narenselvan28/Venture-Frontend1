@@ -14,7 +14,7 @@ import {
   Users,
   MapPin,
   DollarSign,
-  TrendingUp,
+  TrendingUp, 
   Loader,
   FileText,
   Download,
@@ -26,7 +26,8 @@ import {
   BarChart,
   Plus,
 } from 'lucide-react';
-
+import { useNavigate } from 'react-router-dom';
+const navigate=useNavigate;
 const AgentJobs = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
@@ -184,10 +185,9 @@ const AgentJobs = () => {
     return 'from-green-400 to-emerald-500';
   };
 
-  const handleViewDetails = (job) => {
-    setSelectedJob(job);
+  const handleViewDetails = () => {
+    navigate("/agenttimeline");
     // In a real app, this would navigate to job details page
-    console.log('Viewing details for:', job.id);
   };
 
   const handleCreateJob = () => {
@@ -381,7 +381,7 @@ const AgentJobs = () => {
                     </div>
                     
                     <button 
-                      onClick={() => handleViewDetails(job)}
+                      onClick={() => handleViewDetails()}
                       className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white text-sm font-semibold rounded-lg flex items-center gap-2 transition-all shadow-sm"
                     >
                       <Eye size={16} />
@@ -480,7 +480,7 @@ const AgentJobs = () => {
                   {/* Actions */}
                   <div className="grid grid-cols-2 gap-3">
                     <button 
-                      onClick={() => handleViewDetails(job)}
+                      onClick={() => handleViewDetails()}
                       className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white text-sm font-semibold rounded-lg flex items-center gap-2 justify-center transition-all"
                     >
                       <Eye size={16} />

@@ -1,5 +1,6 @@
 // components/AuthPage.jsx
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Mail, Lock, Eye, EyeOff, User, Phone, MapPin, Briefcase,
   Building, Calendar, FileText, Shield, CheckCircle, ArrowRight,
@@ -15,6 +16,7 @@ import {
 import api from '../services/api';
 
 const AuthPage = () => {
+  const navigate = useNavigate();
   const [mode, setMode] = useState('login'); // 'login' or 'register'
   const [role, setRole] = useState('AGENT'); // 'AGENT' or 'CONTRACTOR'
   const [showPassword, setShowPassword] = useState(false);
@@ -229,6 +231,30 @@ const AuthPage = () => {
   const handleFinalSubmit = async () => {
     setIsLoading(true);
 
+    // LOCAL AUTH BYPASS
+    if (mode === 'login') {
+      const mockAgent = { email: 'agent@test.com', password: 'password123' };
+      const mockContractor = { email: 'contractor@test.com', password: 'password123' };
+
+      if (form.email === mockAgent.email && form.password === mockAgent.password) {
+        console.log("Using Local Agent Bypass");
+        localStorage.setItem('token', 'mock-agent-token-12345');
+        localStorage.setItem('role', 'AGENT');
+        setIsLoading(false);
+        navigate('/agent/dashboard');
+        return;
+      }
+
+      if (form.email === mockContractor.email && form.password === mockContractor.password) {
+        console.log("Using Local Contractor Bypass");
+        localStorage.setItem('token', 'mock-contractor-token-12345');
+        localStorage.setItem('role', 'CONTRACTOR');
+        setIsLoading(false);
+        navigate('/contractor/dashboard');
+        return;
+      }
+    }
+
     // Prepare data for API based on role
     let userData;
 
@@ -420,17 +446,38 @@ const AuthPage = () => {
       };
     }
 
-    console.log('Submitting:', { mode, role, userData });
+    try {
+      const endpoint = mode === 'login' ? '/auth/login' : '/auth/register';
+      const payload = mode === 'login'
+        ? { email: form.email, password: form.password, role }
+        : userData;
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      alert(`${mode === 'login' ? 'Login' : 'Registration'} successful!`);
-      if (mode === 'register') {
+      const response = await api.post(endpoint, payload);
+
+      console.log('Success:', response.data);
+
+      if (mode === 'login') {
+        // Store token and role
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('role', role); // 'AGENT' or 'CONTRACTOR'
+
+        // Redirect based on role
+        if (role === 'AGENT') {
+          navigate('/agent/dashboard');
+        } else {
+          navigate('/contractor/dashboard');
+        }
+      } else {
+        alert('Registration successful! Please login.');
         setStep(1);
         setMode('login');
       }
-    }, 1500);
+    } catch (error) {
+      console.error('Error:', error);
+      alert(error.response?.data?.message || 'Operation failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const goBack = () => {
@@ -556,8 +603,8 @@ const AuthPage = () => {
                         type="button"
                         onClick={() => handleRoleToggle('AGENT')}
                         className={`p-5 border-2 rounded-xl transition-all duration-200 ${role === 'AGENT'
-                            ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                           }`}
                       >
                         <div className="flex flex-col items-center">
@@ -571,8 +618,8 @@ const AuthPage = () => {
                         type="button"
                         onClick={() => handleRoleToggle('CONTRACTOR')}
                         className={`p-5 border-2 rounded-xl transition-all duration-200 ${role === 'CONTRACTOR'
-                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm'
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                           }`}
                       >
                         <div className="flex flex-col items-center">

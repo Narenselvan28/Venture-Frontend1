@@ -1,9 +1,10 @@
 // pages/AgentProfile.jsx
-import React, { useState } from 'react';
-import { 
-  User, Settings, FileText, Shield, Mail, Phone, MapPin, 
-  Calendar, Award, Briefcase, CheckCircle, Star, Edit2, 
-  Save, X, Camera, Globe, Building, Users, Clock, 
+import React, { useState, useEffect } from 'react';
+import api from '../../services/api';
+import {
+  User, Settings, FileText, Shield, Mail, Phone, MapPin,
+  Calendar, Award, Briefcase, CheckCircle, Star, Edit2,
+  Save, X, Camera, Globe, Building, Users, Clock,
   DollarSign, TrendingUp, AlertTriangle, Plus, Download,
   MessageSquare, Zap, Target, Hash, Percent, Tag,
   ChevronRight, Eye, EyeOff, Key, Bell, Share2, HelpCircle,
@@ -16,16 +17,16 @@ const AgentProfile = () => {
   const [showPinModal, setShowPinModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
-  
+
   const [profileData, setProfileData] = useState({
-    name: 'Sana Afzal',
-    email: 'sanaafz2@gmail.com',
-    phone: '+91 98765 43210',
-    location: 'Chennai, Tamil Nadu',
-    company: 'VentureOps Services',
-    role: 'Senior Agent',
-    experience: '5 years',
-    bio: 'Experienced service agent specializing in industrial and commercial projects. Focus on quality assurance and contractor management.',
+    name: '',
+    email: '',
+    phone: '',
+    location: '',
+    company: '',
+    role: '',
+    experience: '',
+    bio: '',
     pin: '',
     notifications: {
       email: true,
@@ -37,97 +38,55 @@ const AgentProfile = () => {
     }
   });
 
-  // Recent Activity
-  const recentActivity = [
-    {
-      id: 1,
-      action: 'Job Created',
-      title: 'Electrical Panel Upgrade - Hospital',
-      time: '2 hours ago',
-      icon: 'plus',
-      status: 'success'
-    },
-    {
-      id: 2,
-      action: 'Application Approved',
-      title: 'HVAC System Installation',
-      time: '1 day ago',
-      icon: 'check',
-      status: 'success'
-    },
-    {
-      id: 3,
-      action: 'Contractor Invited',
-      title: 'Elite Electrical Solutions',
-      time: '2 days ago',
-      icon: 'users',
-      status: 'info'
-    },
-    {
-      id: 4,
-      action: 'Invoice Processed',
-      title: 'JOB-0428 Payment',
-      time: '3 days ago',
-      icon: 'dollar',
-      status: 'success'
-    },
-    {
-      id: 5,
-      action: 'SLA Warning',
-      title: 'Industrial Plumbing Job',
-      time: '5 days ago',
-      icon: 'alert',
-      status: 'warning'
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [stats, setStats] = useState({
+    jobsCreated: 0,
+    jobsActive: 0,
+    jobsCompleted: 0,
+    contractorsInvited: 0,
+    applicationsProcessed: 0,
+    slaCompliance: 0,
+    budgetManaged: '₹0',
+    avgResponseTime: '0h'
+  });
+  const [recentProjects, setRecentProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        const res = await api.get('/agent/profile');
+        if (res.data) {
+          setProfileData(prev => ({ ...prev, ...res.data.profile }));
+          setRecentActivity(res.data.activity || []);
+          setStats(res.data.stats || {});
+          setRecentProjects(res.data.projects || []);
+        }
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  // Recent Activity handled in state
+
+  // Stats handled in state
+
+  // Recent Projects handled in state
+
+  const handleSaveProfile = async () => {
+    try {
+      await api.put('/agent/profile', profileData);
+      setIsEditing(false);
+      alert('Profile saved successfully!');
+    } catch (error) {
+      console.error("Error saving profile:", error);
+      alert("Failed to save profile");
     }
-  ];
-
-  // Stats
-  const stats = {
-    jobsCreated: 42,
-    jobsActive: 8,
-    jobsCompleted: 34,
-    contractorsInvited: 28,
-    applicationsProcessed: 156,
-    slaCompliance: 94,
-    budgetManaged: '₹2.5Cr',
-    avgResponseTime: '2.4h'
-  };
-
-  // Recent Projects
-  const recentProjects = [
-    {
-      id: 'JOB-0428',
-      title: 'Electrical Panel Upgrade - Hospital',
-      status: 'In Progress',
-      budget: '₹2,50,000',
-      timeline: '15 days',
-      contractor: 'Elite Electrical Solutions',
-      progress: 65
-    },
-    {
-      id: 'JOB-0429',
-      title: 'HVAC System Installation - Corporate',
-      status: 'Bidding',
-      budget: '₹4,80,000',
-      timeline: '30 days',
-      contractor: 'CoolTech Climate Systems',
-      progress: 20
-    },
-    {
-      id: 'JOB-0427',
-      title: 'Data Center Power Backup',
-      status: 'Completed',
-      budget: '₹15,00,000',
-      timeline: '45 days',
-      contractor: 'PowerTech Industrial',
-      progress: 100
-    }
-  ];
-
-  const handleSaveProfile = () => {
-    setIsEditing(false);
-    // In a real app, you would save to backend here
-    console.log('Profile saved:', profileData);
   };
 
   const handlePinSubmit = () => {
@@ -141,7 +100,7 @@ const AgentProfile = () => {
   };
 
   const getStatusColor = (status) => {
-    switch(status) {
+    switch (status) {
       case 'success': return 'bg-emerald-100 text-emerald-800';
       case 'warning': return 'bg-amber-100 text-amber-800';
       case 'info': return 'bg-blue-100 text-blue-800';
@@ -150,7 +109,7 @@ const AgentProfile = () => {
   };
 
   const getStatusIcon = (icon) => {
-    switch(icon) {
+    switch (icon) {
       case 'plus': return <Plus size={14} />;
       case 'check': return <CheckCircle size={14} />;
       case 'users': return <Users size={14} />;
@@ -161,7 +120,7 @@ const AgentProfile = () => {
   };
 
   const getJobStatusColor = (status) => {
-    switch(status) {
+    switch (status) {
       case 'Completed': return 'bg-emerald-100 text-emerald-800';
       case 'In Progress': return 'bg-blue-100 text-blue-800';
       case 'Bidding': return 'bg-amber-100 text-amber-800';
@@ -180,7 +139,7 @@ const AgentProfile = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30 font-sans pb-20 md:pb-6">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        
+
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
           <div>
@@ -188,14 +147,14 @@ const AgentProfile = () => {
             <p className="text-gray-600">Manage your account settings and preferences</p>
           </div>
           <div className="flex gap-3">
-            <button 
+            <button
               onClick={handleInviteFriend}
               className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-medium flex items-center gap-2"
             >
               <Share2 size={16} />
               Invite a friend
             </button>
-            <button 
+            <button
               onClick={() => setIsEditing(!isEditing)}
               className="px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl font-medium flex items-center gap-2"
             >
@@ -221,20 +180,20 @@ const AgentProfile = () => {
                     </button>
                   )}
                 </div>
-                
+
                 {isEditing ? (
                   <div className="w-full space-y-4">
                     <input
                       type="text"
                       value={profileData.name}
-                      onChange={(e) => setProfileData({...profileData, name: e.target.value})}
+                      onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
                       placeholder="Full Name"
                     />
                     <input
                       type="email"
                       value={profileData.email}
-                      onChange={(e) => setProfileData({...profileData, email: e.target.value})}
+                      onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
                       placeholder="Email Address"
                     />
@@ -259,7 +218,7 @@ const AgentProfile = () => {
                     <input
                       type="tel"
                       value={profileData.phone}
-                      onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
+                      onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
                       className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm"
                       placeholder="Phone Number"
                     />
@@ -273,7 +232,7 @@ const AgentProfile = () => {
                     <input
                       type="text"
                       value={profileData.location}
-                      onChange={(e) => setProfileData({...profileData, location: e.target.value})}
+                      onChange={(e) => setProfileData({ ...profileData, location: e.target.value })}
                       className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm"
                       placeholder="Location"
                     />
@@ -287,7 +246,7 @@ const AgentProfile = () => {
                     <input
                       type="text"
                       value={profileData.company}
-                      onChange={(e) => setProfileData({...profileData, company: e.target.value})}
+                      onChange={(e) => setProfileData({ ...profileData, company: e.target.value })}
                       className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm"
                       placeholder="Company"
                     />
@@ -307,7 +266,7 @@ const AgentProfile = () => {
                 {isEditing ? (
                   <textarea
                     value={profileData.bio}
-                    onChange={(e) => setProfileData({...profileData, bio: e.target.value})}
+                    onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm"
                     rows="3"
                     placeholder="Tell us about yourself..."
@@ -344,7 +303,7 @@ const AgentProfile = () => {
             <div className="bg-white border border-gray-300 rounded-xl p-6">
               <h3 className="font-bold text-gray-900 mb-4">Quick Actions</h3>
               <div className="space-y-3">
-                <button 
+                <button
                   onClick={() => setShowPinModal(true)}
                   className="w-full flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg"
                 >
@@ -356,7 +315,7 @@ const AgentProfile = () => {
                   </div>
                   <ChevronRight size={16} className="text-gray-400" />
                 </button>
-                <button 
+                <button
                   onClick={() => setShowSettings(true)}
                   className="w-full flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg"
                 >
@@ -368,7 +327,7 @@ const AgentProfile = () => {
                   </div>
                   <ChevronRight size={16} className="text-gray-400" />
                 </button>
-                <button 
+                <button
                   onClick={handleInviteFriend}
                   className="w-full flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg"
                 >
@@ -402,11 +361,10 @@ const AgentProfile = () => {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap ${
-                      activeTab === tab.id 
-                        ? 'text-blue-600 border-b-2 border-blue-600' 
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
+                    className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap ${activeTab === tab.id
+                      ? 'text-blue-600 border-b-2 border-blue-600'
+                      : 'text-gray-600 hover:text-gray-900'
+                      }`}
                   >
                     {tab.icon}
                     {tab.label}
@@ -472,18 +430,17 @@ const AgentProfile = () => {
                               {project.status}
                             </span>
                           </div>
-                          
+
                           <div className="mb-3">
                             <div className="flex justify-between text-sm mb-1">
                               <span className="text-gray-600">Progress</span>
                               <span className="font-medium">{project.progress}%</span>
                             </div>
                             <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                              <div 
-                                className={`h-full rounded-full ${
-                                  project.progress === 100 ? 'bg-emerald-500' : 
+                              <div
+                                className={`h-full rounded-full ${project.progress === 100 ? 'bg-emerald-500' :
                                   project.progress > 50 ? 'bg-blue-500' : 'bg-amber-500'
-                                }`}
+                                  }`}
                                 style={{ width: `${project.progress}%` }}
                               />
                             </div>
@@ -713,7 +670,7 @@ const AgentProfile = () => {
             <div className="p-6 border-b border-gray-300">
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold text-gray-900">Set PIN</h3>
-                <button 
+                <button
                   onClick={() => setShowPinModal(false)}
                   className="p-2 hover:bg-gray-100 rounded-lg"
                 >
@@ -722,12 +679,12 @@ const AgentProfile = () => {
               </div>
               <p className="text-gray-600 text-sm mt-1">Add a PIN for quick account access</p>
             </div>
-            
+
             <div className="p-6">
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-900 mb-2">Enter 4-digit PIN</label>
                 <div className="flex gap-2 justify-center">
-                  {[1,2,3,4].map((digit) => (
+                  {[1, 2, 3, 4].map((digit) => (
                     <input
                       key={digit}
                       type="password"
@@ -737,15 +694,15 @@ const AgentProfile = () => {
                   ))}
                 </div>
               </div>
-              
+
               <div className="flex justify-end gap-3">
-                <button 
+                <button
                   onClick={() => setShowPinModal(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   onClick={handlePinSubmit}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
                 >
@@ -764,7 +721,7 @@ const AgentProfile = () => {
             <div className="p-6 border-b border-gray-300">
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold text-gray-900">Invite a Friend</h3>
-                <button 
+                <button
                   onClick={() => setShowInviteModal(false)}
                   className="p-2 hover:bg-gray-100 rounded-lg"
                 >
@@ -773,7 +730,7 @@ const AgentProfile = () => {
               </div>
               <p className="text-gray-600 text-sm mt-1">Share your referral link</p>
             </div>
-            
+
             <div className="p-6">
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-900 mb-2">Referral Link</label>
@@ -789,7 +746,7 @@ const AgentProfile = () => {
                   </button>
                 </div>
               </div>
-              
+
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                 <div className="flex items-start gap-3">
                   <Gift size={20} className="text-blue-600 mt-0.5" />
@@ -801,15 +758,15 @@ const AgentProfile = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex justify-end gap-3">
-                <button 
+                <button
                   onClick={() => setShowInviteModal(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
                 >
                   Close
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     // Share functionality
                     setShowInviteModal(false);
@@ -829,16 +786,16 @@ const AgentProfile = () => {
 
 // Helper component for Smartphone icon
 const Smartphone = ({ size, className }) => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
     className={className}
   >
     <rect width="14" height="20" x="5" y="2" rx="2" ry="2"></rect>
@@ -848,16 +805,16 @@ const Smartphone = ({ size, className }) => (
 
 // Helper component for Gift icon
 const Gift = ({ size, className }) => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
     className={className}
   >
     <rect x="3" y="8" width="18" height="4" rx="1"></rect>

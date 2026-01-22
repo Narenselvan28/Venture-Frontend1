@@ -1,5 +1,6 @@
 // pages/ContractorProfile.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import {
   User, Mail, Phone, MapPin, Briefcase, Building,
@@ -25,112 +26,79 @@ const ContractorProfile = () => {
   const [showInsuranceModal, setShowInsuranceModal] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
 
-  // Contractor Profile Data (from your schema)
-  const contractorProfile = {
-    _id: 'CONTRACTOR_001',
-    userId: 'USER_001',
-    
+  // Contractor Profile Data State
+  const [contractorProfile, setContractorProfile] = useState({
+    _id: '',
+    userId: '',
     business: {
-      name: 'Elite Electrical Solutions',
-      type: 'PVT_LTD',
-      yearEstablished: 2012,
-      gstNumber: '27AAAAA0000A1Z5',
-      address: '123 Industrial Area, Phase 2',
-      city: 'Chennai',
-      state: 'Tamil Nadu',
-      country: 'India',
-      website: 'www.eliteelectricals.com',
-      logoUrl: '/api/placeholder/400/400'
+      name: '',
+      type: 'PVT_LTD', // Default
+      yearEstablished: new Date().getFullYear(),
+      gstNumber: '',
+      address: '',
+      city: '',
+      state: '',
+      country: '',
+      website: '',
+      logoUrl: ''
     },
-
     contact: {
-      ownerName: 'Alex Mendez',
-      email: 'alex@eliteelectricals.com',
-      phone: '+91 98765 43210'
+      ownerName: '',
+      email: '',
+      phone: ''
     },
-
     capabilities: {
-      specializations: ['Electrical', 'Industrial', 'High Voltage', 'Automation'],
-      serviceCities: ['Chennai', 'Bangalore', 'Hyderabad', 'Pune'],
-      teamSize: '21-50',
-      maxParallelJobs: 8,
-      avgProjectValue: 1500000
+      specializations: [],
+      serviceCities: [],
+      teamSize: '',
+      maxParallelJobs: 0,
+      avgProjectValue: 0
     },
-
     compliance: {
-      licenses: [
-        {
-          name: 'Electrical Contractor License',
-          number: 'ECL-2021-0428',
-          validTill: '2024-12-31',
-          proofUrl: '/docs/license1.pdf',
-          status: 'active'
-        },
-        {
-          name: 'High Voltage Certification',
-          number: 'HVC-2022-1567',
-          validTill: '2025-06-30',
-          proofUrl: '/docs/license2.pdf',
-          status: 'active'
-        },
-        {
-          name: 'Industrial Safety License',
-          number: 'ISL-2023-8923',
-          validTill: '2024-09-15',
-          proofUrl: '/docs/license3.pdf',
-          status: 'expiring'
-        }
-      ],
+      licenses: [],
       insurance: {
-        provider: 'ICICI Lombard',
-        policyNumber: 'INS-2023-7845',
-        validTill: '2025-03-31',
-        coverageAmount: 50000000,
-        proofUrl: '/docs/insurance.pdf',
-        status: 'active'
+        provider: '',
+        policyNumber: '',
+        validTill: '',
+        coverageAmount: 0,
+        proofUrl: '',
+        status: ''
       }
     },
-
     performance: {
-      jobsApplied: 289,
-      jobsWon: 156,
-      jobsCompleted: 148,
-      jobsDelayed: 8,
-      jobsRejected: 5,
-      slaCompliancePercent: 96.2,
-      avgDelayHours: 0.8,
-      disputeCount: 3,
-      penaltyAmountTotal: 45000
+      jobsApplied: 0,
+      jobsWon: 0,
+      jobsCompleted: 0,
+      jobsDelayed: 0,
+      jobsRejected: 0,
+      slaCompliancePercent: 0,
+      avgDelayHours: 0,
+      disputeCount: 0,
+      penaltyAmountTotal: 0
     },
-
     ratings: {
-      overall: 4.7,
-      quality: 4.8,
-      punctuality: 4.6,
-      communication: 4.9,
-      reviews: 128
+      overall: 0,
+      quality: 0,
+      punctuality: 0,
+      communication: 0,
+      reviews: 0
     },
-
     ml: {
-      trustScore: 88,
-      deliveryScore: 92,
-      qualityScore: 94,
-      reliabilityScore: 89,
-      lastComputedAt: '2024-03-15T10:30:00Z'
+      trustScore: 0,
+      deliveryScore: 0,
+      qualityScore: 0,
+      reliabilityScore: 0,
+      lastComputedAt: new Date().toISOString()
     },
-
     financial: {
-      totalEarnings: 42500000,
-      totalPenalties: 45000,
-      lastPaymentAt: '2024-03-10T14:20:00Z',
-      avgPaymentCycle: 14
+      totalEarnings: 0,
+      totalPenalties: 0,
+      lastPaymentAt: null,
+      avgPaymentCycle: 0
     },
-
     security: {
-      pinHash: '••••',
-      twoFactorEnabled: true
+      twoFactorEnabled: false
     },
-
     preferences: {
       notifications: {
         job: true,
@@ -141,29 +109,59 @@ const ContractorProfile = () => {
       language: 'en',
       darkMode: false
     },
-
     verification: {
-      isEmailVerified: true,
-      isPhoneVerified: true,
-      isBusinessVerified: true,
-      verifiedAt: '2023-11-20T09:15:00Z'
+      isEmailVerified: false,
+      isPhoneVerified: false,
+      isBusinessVerified: false,
+      verifiedAt: null
     },
-
     activity: {
-      lastLoginAt: '2024-03-15T08:45:00Z',
-      lastApplicationAt: '2024-03-14T16:30:00Z',
-      lastJobCompletedAt: '2024-03-12T18:20:00Z'
+      lastLoginAt: null,
+      lastApplicationAt: null,
+      lastJobCompletedAt: null
     },
-
     status: {
       isActive: true,
       isSuspended: false,
       suspensionReason: ''
     },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  });
 
-    createdAt: '2021-05-15T10:00:00Z',
-    updatedAt: '2024-03-15T09:00:00Z'
-  };
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get('/contractor/profile');
+        if (response.data) {
+          // Merge response with default structure to ensure no undefined errors
+          setContractorProfile(prev => ({
+            ...prev,
+            ...response.data,
+            // Ensure nested objects exist if API returns partial data
+            business: { ...prev.business, ...(response.data.business || {}) },
+            contact: { ...prev.contact, ...(response.data.contact || {}) },
+            capabilities: { ...prev.capabilities, ...(response.data.capabilities || {}) },
+            compliance: { ...prev.compliance, ...(response.data.compliance || {}) },
+            performance: { ...prev.performance, ...(response.data.performance || {}) },
+            ratings: { ...prev.ratings, ...(response.data.ratings || {}) },
+            ml: { ...prev.ml, ...(response.data.ml || {}) },
+            verification: { ...prev.verification, ...(response.data.verification || {}) },
+            activity: { ...prev.activity, ...(response.data.activity || {}) }
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to fetch contractor profile:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, []);
 
   // Tabs configuration
   const tabs = [
@@ -201,7 +199,7 @@ const ContractorProfile = () => {
     const now = new Date();
     const diffMs = now - date;
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 0) return 'Today';
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays} days ago`;
@@ -211,7 +209,7 @@ const ContractorProfile = () => {
 
   // Get business type label
   const getBusinessTypeLabel = (type) => {
-    switch(type) {
+    switch (type) {
       case 'INDIVIDUAL': return 'Individual';
       case 'FIRM': return 'Firm';
       case 'PVT_LTD': return 'Private Limited';
@@ -222,7 +220,7 @@ const ContractorProfile = () => {
 
   // Get status color
   const getStatusColor = (status) => {
-    switch(status) {
+    switch (status) {
       case 'active': return 'bg-emerald-100 text-emerald-800';
       case 'expiring': return 'bg-amber-100 text-amber-800';
       case 'expired': return 'bg-red-100 text-red-800';
@@ -252,10 +250,16 @@ const ContractorProfile = () => {
   };
 
   // Handle save profile
-  const handleSaveProfile = () => {
-    setIsEditing(false);
-    // API call would go here
-    console.log('Saving profile...');
+  const handleSaveProfile = async () => {
+    try {
+      await api.put('/contractor/profile', contractorProfile);
+      setIsEditing(false);
+      // You might want to add a toast notification here
+      alert('Profile saved successfully!');
+    } catch (error) {
+      console.error("Failed to save profile:", error);
+      alert('Failed to save profile. Please try again.');
+    }
   };
 
   // Handle add license
@@ -287,7 +291,7 @@ const ContractorProfile = () => {
               <Download size={16} />
               Export Profile
             </button>
-            <button 
+            <button
               onClick={handleEditToggle}
               className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium flex items-center gap-2"
             >
@@ -322,14 +326,14 @@ const ContractorProfile = () => {
                     </button>
                   )}
                 </div>
-                
+
                 <h2 className="text-xl font-bold text-gray-900 mb-1 text-center">
                   {contractorProfile.business.name}
                 </h2>
                 <p className="text-gray-600 mb-3 text-center">
                   {getBusinessTypeLabel(contractorProfile.business.type)}
                 </p>
-                
+
                 <div className="flex flex-col items-center gap-2">
                   <div className="flex items-center gap-2 px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm font-medium">
                     <CheckCircle size={12} />
@@ -359,7 +363,7 @@ const ContractorProfile = () => {
                 </div>
                 <div className="flex items-center gap-3">
                   <Globe size={16} className="text-gray-400" />
-                  <a 
+                  <a
                     href={`https://${contractorProfile.business.website}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -404,11 +408,10 @@ const ContractorProfile = () => {
                     <Mail size={14} className="text-gray-400" />
                     <span className="text-sm text-gray-700">Email</span>
                   </div>
-                  <div className={`px-2 py-1 rounded text-xs font-bold ${
-                    contractorProfile.verification.isEmailVerified 
-                      ? 'bg-emerald-100 text-emerald-800' 
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
+                  <div className={`px-2 py-1 rounded text-xs font-bold ${contractorProfile.verification.isEmailVerified
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-gray-100 text-gray-800'
+                    }`}>
                     {contractorProfile.verification.isEmailVerified ? 'Verified' : 'Pending'}
                   </div>
                 </div>
@@ -417,11 +420,10 @@ const ContractorProfile = () => {
                     <Phone size={14} className="text-gray-400" />
                     <span className="text-sm text-gray-700">Phone</span>
                   </div>
-                  <div className={`px-2 py-1 rounded text-xs font-bold ${
-                    contractorProfile.verification.isPhoneVerified 
-                      ? 'bg-emerald-100 text-emerald-800' 
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
+                  <div className={`px-2 py-1 rounded text-xs font-bold ${contractorProfile.verification.isPhoneVerified
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-gray-100 text-gray-800'
+                    }`}>
                     {contractorProfile.verification.isPhoneVerified ? 'Verified' : 'Pending'}
                   </div>
                 </div>
@@ -430,16 +432,15 @@ const ContractorProfile = () => {
                     <Building size={14} className="text-gray-400" />
                     <span className="text-sm text-gray-700">Business</span>
                   </div>
-                  <div className={`px-2 py-1 rounded text-xs font-bold ${
-                    contractorProfile.verification.isBusinessVerified 
-                      ? 'bg-emerald-100 text-emerald-800' 
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
+                  <div className={`px-2 py-1 rounded text-xs font-bold ${contractorProfile.verification.isBusinessVerified
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-gray-100 text-gray-800'
+                    }`}>
                     {contractorProfile.verification.isBusinessVerified ? 'Verified' : 'Pending'}
                   </div>
                 </div>
               </div>
-              
+
               {!contractorProfile.verification.isBusinessVerified && (
                 <button
                   onClick={handleRequestVerification}
@@ -503,11 +504,10 @@ const ContractorProfile = () => {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap border-b-2 ${
-                      activeTab === tab.id 
-                        ? 'text-blue-600 border-blue-600' 
-                        : 'text-gray-600 hover:text-gray-900 border-transparent'
-                    }`}
+                    className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap border-b-2 ${activeTab === tab.id
+                      ? 'text-blue-600 border-blue-600'
+                      : 'text-gray-600 hover:text-gray-900 border-transparent'
+                      }`}
                   >
                     {tab.icon}
                     {tab.label}
@@ -536,7 +536,7 @@ const ContractorProfile = () => {
                           </div>
                         </div>
                         <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className={`h-full ${getScoreBarColor(contractorProfile.ml.trustScore)}`}
                             style={{ width: `${contractorProfile.ml.trustScore}%` }}
                           />
@@ -550,7 +550,7 @@ const ContractorProfile = () => {
                           </div>
                         </div>
                         <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className={`h-full ${getScoreBarColor(contractorProfile.ml.deliveryScore)}`}
                             style={{ width: `${contractorProfile.ml.deliveryScore}%` }}
                           />
@@ -564,7 +564,7 @@ const ContractorProfile = () => {
                           </div>
                         </div>
                         <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className={`h-full ${getScoreBarColor(contractorProfile.ml.qualityScore)}`}
                             style={{ width: `${contractorProfile.ml.qualityScore}%` }}
                           />
@@ -578,7 +578,7 @@ const ContractorProfile = () => {
                           </div>
                         </div>
                         <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className={`h-full ${getScoreBarColor(contractorProfile.ml.reliabilityScore)}`}
                             style={{ width: `${contractorProfile.ml.reliabilityScore}%` }}
                           />
@@ -720,7 +720,11 @@ const ContractorProfile = () => {
                         {isEditing ? (
                           <input
                             type="text"
-                            defaultValue={contractorProfile.business.name}
+                            value={contractorProfile.business.name}
+                            onChange={(e) => setContractorProfile({
+                              ...contractorProfile,
+                              business: { ...contractorProfile.business, name: e.target.value }
+                            })}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                           />
                         ) : (
@@ -732,7 +736,14 @@ const ContractorProfile = () => {
                           Business Type
                         </label>
                         {isEditing ? (
-                          <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                          <select
+                            value={contractorProfile.business.type}
+                            onChange={(e) => setContractorProfile({
+                              ...contractorProfile,
+                              business: { ...contractorProfile.business, type: e.target.value }
+                            })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          >
                             <option value="INDIVIDUAL">Individual</option>
                             <option value="FIRM">Firm</option>
                             <option value="PVT_LTD">Private Limited</option>
@@ -751,7 +762,11 @@ const ContractorProfile = () => {
                         {isEditing ? (
                           <input
                             type="number"
-                            defaultValue={contractorProfile.business.yearEstablished}
+                            value={contractorProfile.business.yearEstablished}
+                            onChange={(e) => setContractorProfile({
+                              ...contractorProfile,
+                              business: { ...contractorProfile.business, yearEstablished: e.target.value }
+                            })}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                           />
                         ) : (
@@ -765,7 +780,11 @@ const ContractorProfile = () => {
                         {isEditing ? (
                           <input
                             type="text"
-                            defaultValue={contractorProfile.business.gstNumber}
+                            value={contractorProfile.business.gstNumber}
+                            onChange={(e) => setContractorProfile({
+                              ...contractorProfile,
+                              business: { ...contractorProfile.business, gstNumber: e.target.value }
+                            })}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                           />
                         ) : (
@@ -784,7 +803,11 @@ const ContractorProfile = () => {
                         </label>
                         {isEditing ? (
                           <textarea
-                            defaultValue={contractorProfile.business.address}
+                            value={contractorProfile.business.address}
+                            onChange={(e) => setContractorProfile({
+                              ...contractorProfile,
+                              business: { ...contractorProfile.business, address: e.target.value }
+                            })}
                             rows="2"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                           />
@@ -798,7 +821,11 @@ const ContractorProfile = () => {
                           {isEditing ? (
                             <input
                               type="text"
-                              defaultValue={contractorProfile.business.city}
+                              value={contractorProfile.business.city}
+                              onChange={(e) => setContractorProfile({
+                                ...contractorProfile,
+                                business: { ...contractorProfile.business, city: e.target.value }
+                              })}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                             />
                           ) : (
@@ -810,7 +837,11 @@ const ContractorProfile = () => {
                           {isEditing ? (
                             <input
                               type="text"
-                              defaultValue={contractorProfile.business.state}
+                              value={contractorProfile.business.state}
+                              onChange={(e) => setContractorProfile({
+                                ...contractorProfile,
+                                business: { ...contractorProfile.business, state: e.target.value }
+                              })}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                             />
                           ) : (
@@ -822,7 +853,11 @@ const ContractorProfile = () => {
                           {isEditing ? (
                             <input
                               type="text"
-                              defaultValue={contractorProfile.business.country}
+                              value={contractorProfile.business.country}
+                              onChange={(e) => setContractorProfile({
+                                ...contractorProfile,
+                                business: { ...contractorProfile.business, country: e.target.value }
+                              })}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                             />
                           ) : (
@@ -834,7 +869,11 @@ const ContractorProfile = () => {
                           {isEditing ? (
                             <input
                               type="url"
-                              defaultValue={contractorProfile.business.website}
+                              value={contractorProfile.business.website}
+                              onChange={(e) => setContractorProfile({
+                                ...contractorProfile,
+                                business: { ...contractorProfile.business, website: e.target.value }
+                              })}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                             />
                           ) : (
@@ -855,7 +894,11 @@ const ContractorProfile = () => {
                         {isEditing ? (
                           <input
                             type="text"
-                            defaultValue={contractorProfile.contact.ownerName}
+                            value={contractorProfile.contact.ownerName}
+                            onChange={(e) => setContractorProfile({
+                              ...contractorProfile,
+                              contact: { ...contractorProfile.contact, ownerName: e.target.value }
+                            })}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                           />
                         ) : (
@@ -869,7 +912,11 @@ const ContractorProfile = () => {
                         {isEditing ? (
                           <input
                             type="email"
-                            defaultValue={contractorProfile.contact.email}
+                            value={contractorProfile.contact.email}
+                            onChange={(e) => setContractorProfile({
+                              ...contractorProfile,
+                              contact: { ...contractorProfile.contact, email: e.target.value }
+                            })}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                           />
                         ) : (
@@ -883,7 +930,11 @@ const ContractorProfile = () => {
                         {isEditing ? (
                           <input
                             type="tel"
-                            defaultValue={contractorProfile.contact.phone}
+                            value={contractorProfile.contact.phone}
+                            onChange={(e) => setContractorProfile({
+                              ...contractorProfile,
+                              contact: { ...contractorProfile.contact, phone: e.target.value }
+                            })}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                           />
                         ) : (
@@ -962,7 +1013,14 @@ const ContractorProfile = () => {
                           Team Size
                         </label>
                         {isEditing ? (
-                          <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                          <select
+                            value={contractorProfile.capabilities.teamSize}
+                            onChange={(e) => setContractorProfile({
+                              ...contractorProfile,
+                              capabilities: { ...contractorProfile.capabilities, teamSize: e.target.value }
+                            })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          >
                             <option value="1-5">1-5 employees</option>
                             <option value="6-20">6-20 employees</option>
                             <option value="21-50">21-50 employees</option>
@@ -1043,7 +1101,7 @@ const ContractorProfile = () => {
                               {contractorProfile.performance.slaCompliancePercent}%
                             </span>
                             <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-                              <div 
+                              <div
                                 className="h-full bg-emerald-500"
                                 style={{ width: `${contractorProfile.performance.slaCompliancePercent}%` }}
                               />
@@ -1113,7 +1171,7 @@ const ContractorProfile = () => {
                         Add License
                       </button>
                     </div>
-                    
+
                     <div className="space-y-3">
                       {contractorProfile.compliance.licenses.map((license, index) => (
                         <div key={index} className="border border-gray-300 rounded-lg p-4">
@@ -1156,7 +1214,7 @@ const ContractorProfile = () => {
                         Add Insurance
                       </button>
                     </div>
-                    
+
                     {contractorProfile.compliance.insurance ? (
                       <div className="border border-gray-300 rounded-lg p-4">
                         <div className="flex items-start justify-between mb-3">
@@ -1171,11 +1229,10 @@ const ContractorProfile = () => {
                               Coverage: {formatCurrency(contractorProfile.compliance.insurance.coverageAmount)}
                             </div>
                           </div>
-                          <span className={`px-2 py-1 rounded text-xs font-bold ${
-                            contractorProfile.compliance.insurance.status === 'active' 
-                              ? 'bg-emerald-100 text-emerald-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
+                          <span className={`px-2 py-1 rounded text-xs font-bold ${contractorProfile.compliance.insurance.status === 'active'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-red-100 text-red-800'
+                            }`}>
                             {contractorProfile.compliance.insurance.status.toUpperCase()}
                           </span>
                         </div>
@@ -1241,7 +1298,7 @@ const ContractorProfile = () => {
                         <div className="flex justify-between items-center">
                           <span className="text-gray-600">Last Payment</span>
                           <span className="font-medium">
-                            {contractorProfile.financial.lastPaymentAt 
+                            {contractorProfile.financial.lastPaymentAt
                               ? formatDate(contractorProfile.financial.lastPaymentAt)
                               : 'No payments yet'
                             }
@@ -1305,7 +1362,7 @@ const ContractorProfile = () => {
                           {contractorProfile.security.pinHash ? 'Change PIN' : 'Set PIN'}
                         </button>
                       </div>
-                      
+
                       <div className="flex items-center justify-between p-4 border border-gray-300 rounded-xl">
                         <div className="flex items-center gap-3">
                           <div className="p-2 bg-purple-100 rounded-lg">
@@ -1317,11 +1374,10 @@ const ContractorProfile = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className={`px-2 py-1 rounded text-xs font-bold ${
-                            contractorProfile.security.twoFactorEnabled 
-                              ? 'bg-emerald-100 text-emerald-800' 
-                              : 'bg-gray-100 text-gray-800'
-                          }`}>
+                          <span className={`px-2 py-1 rounded text-xs font-bold ${contractorProfile.security.twoFactorEnabled
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-gray-100 text-gray-800'
+                            }`}>
                             {contractorProfile.security.twoFactorEnabled ? 'ENABLED' : 'DISABLED'}
                           </span>
                           <button className="px-4 py-2 border border-gray-300 hover:bg-gray-50 rounded-lg font-medium">
@@ -1394,7 +1450,7 @@ const ContractorProfile = () => {
                           <input
                             type="checkbox"
                             checked={value}
-                            onChange={() => {}}
+                            onChange={() => { }}
                             className="w-5 h-5 text-blue-600 rounded border-gray-300"
                           />
                         </label>
@@ -1424,7 +1480,7 @@ const ContractorProfile = () => {
                         <input
                           type="checkbox"
                           checked={contractorProfile.preferences.darkMode}
-                          onChange={() => {}}
+                          onChange={() => { }}
                           className="w-5 h-5 text-blue-600 rounded border-gray-300"
                         />
                       </label>
@@ -1468,7 +1524,7 @@ const ContractorProfile = () => {
             <div className="p-6 border-b border-gray-300">
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold text-gray-900">Add License</h3>
-                <button 
+                <button
                   onClick={() => setShowLicenseModal(false)}
                   className="p-2 hover:bg-gray-100 rounded-lg"
                 >
@@ -1476,7 +1532,7 @@ const ContractorProfile = () => {
                 </button>
               </div>
             </div>
-            
+
             <div className="p-6">
               <div className="space-y-4">
                 <div>
@@ -1500,15 +1556,15 @@ const ContractorProfile = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex justify-end gap-3 mt-6">
-                <button 
+                <button
                   onClick={() => setShowLicenseModal(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     setShowLicenseModal(false);
                     alert('License added successfully');
@@ -1530,7 +1586,7 @@ const ContractorProfile = () => {
             <div className="p-6 border-b border-gray-300">
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold text-gray-900">Add Insurance</h3>
-                <button 
+                <button
                   onClick={() => setShowInsuranceModal(false)}
                   className="p-2 hover:bg-gray-100 rounded-lg"
                 >
@@ -1538,7 +1594,7 @@ const ContractorProfile = () => {
                 </button>
               </div>
             </div>
-            
+
             <div className="p-6">
               <div className="space-y-4">
                 <div>
@@ -1566,15 +1622,15 @@ const ContractorProfile = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex justify-end gap-3 mt-6">
-                <button 
+                <button
                   onClick={() => setShowInsuranceModal(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     setShowInsuranceModal(false);
                     alert('Insurance added successfully');
@@ -1596,7 +1652,7 @@ const ContractorProfile = () => {
             <div className="p-6 border-b border-gray-300">
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold text-gray-900">Request Business Verification</h3>
-                <button 
+                <button
                   onClick={() => setShowVerificationModal(false)}
                   className="p-2 hover:bg-gray-100 rounded-lg"
                 >
@@ -1604,7 +1660,7 @@ const ContractorProfile = () => {
                 </button>
               </div>
             </div>
-            
+
             <div className="p-6">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                 <div className="flex items-start gap-3">
@@ -1640,15 +1696,15 @@ const ContractorProfile = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex justify-end gap-3 mt-6">
-                <button 
+                <button
                   onClick={() => setShowVerificationModal(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     setShowVerificationModal(false);
                     alert('Verification request submitted successfully');

@@ -1,6 +1,7 @@
 // pages/ContractorDashboard.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../../services/api';
 import {
   Search, Bell, ChevronRight, Clock, AlertTriangle,
   CheckCircle, TrendingUp, Award, Target, Zap,
@@ -13,7 +14,7 @@ import {
   Pause, Refresh, Award as AwardIcon, Trophy,
   Crown, TrendingUp as TrendingUpIcon, Target as TargetIcon,
   Lightning, Rocket, Flag, Home, Building,
-  MapPin, Phone, Mail, CreditCard, ShieldCheck,User
+  MapPin, Phone, Mail, CreditCard, ShieldCheck, User
 } from 'lucide-react';
 
 const ContractorDashboard = () => {
@@ -21,13 +22,45 @@ const ContractorDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [timeFilter, setTimeFilter] = useState('this-week');
 
+  const [dashboardData, setDashboardData] = useState({
+    kpis: {
+      activeJobs: { value: '0', change: '+0', trend: 'up' },
+      atRiskJobs: { value: '0', change: '0', trend: 'warning' },
+      completed: { value: '0', change: '+0', trend: 'up' },
+      sla: { value: '0%', change: '+0%', trend: 'up' }
+    },
+    ongoingJobs: [],
+    attentionItems: [],
+    aiSuggestions: [],
+    slaGrades: []
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get('/contractor/dashboard');
+        // Merge with default structure if needed, or assume backend matches
+        if (response.data) {
+          setDashboardData(prev => ({ ...prev, ...response.data }));
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboard();
+  }, [timeFilter]);
+
   // KPI Data
   const kpis = [
     {
       title: 'Active Jobs',
-      value: '3',
-      change: '+1',
-      trend: 'up',
+      value: dashboardData.kpis?.activeJobs?.value,
+      change: dashboardData.kpis?.activeJobs?.change,
+      trend: dashboardData.kpis?.activeJobs?.trend,
       icon: <Briefcase className="w-6 h-6 text-blue-600" />,
       color: 'bg-blue-50 border-blue-200',
       textColor: 'text-blue-700',
@@ -35,9 +68,9 @@ const ContractorDashboard = () => {
     },
     {
       title: 'At Risk Jobs',
-      value: '1',
-      change: '🔴',
-      trend: 'warning',
+      value: dashboardData.kpis?.atRiskJobs?.value,
+      change: dashboardData.kpis?.atRiskJobs?.change,
+      trend: dashboardData.kpis?.atRiskJobs?.trend,
       icon: <AlertTriangle className="w-6 h-6 text-red-600" />,
       color: 'bg-red-50 border-red-200',
       textColor: 'text-red-700',
@@ -45,9 +78,9 @@ const ContractorDashboard = () => {
     },
     {
       title: 'Completed This Month',
-      value: '8',
-      change: '+2',
-      trend: 'up',
+      value: dashboardData.kpis?.completed?.value,
+      change: dashboardData.kpis?.completed?.change,
+      trend: dashboardData.kpis?.completed?.trend,
       icon: <CheckCircle className="w-6 h-6 text-emerald-600" />,
       color: 'bg-emerald-50 border-emerald-200',
       textColor: 'text-emerald-700',
@@ -55,9 +88,9 @@ const ContractorDashboard = () => {
     },
     {
       title: 'SLA Compliance',
-      value: '96.2%',
-      change: '+1.2%',
-      trend: 'up',
+      value: dashboardData.kpis?.sla?.value,
+      change: dashboardData.kpis?.sla?.change,
+      trend: dashboardData.kpis?.sla?.trend,
       icon: <Target className="w-6 h-6 text-indigo-600" />,
       color: 'bg-indigo-50 border-indigo-200',
       textColor: 'text-indigo-700',
@@ -65,120 +98,13 @@ const ContractorDashboard = () => {
     }
   ];
 
-  // Ongoing Jobs
-  const ongoingJobs = [
-    {
-      id: 'JOB-0428',
-      title: 'Electrical Panel Upgrade',
-      client: 'Apollo Hospital',
-      agent: 'Selvakumar S',
-      slaRemaining: '18h',
-      progress: 70,
-      status: 'at-risk',
-      statusText: 'AT RISK',
-      budget: '₹2,50,000',
-      location: 'Chennai, TN',
-      priority: 'HIGH'
-    },
-    {
-      id: 'JOB-0429',
-      title: 'HVAC System Installation',
-      client: 'Global Tech Solutions',
-      agent: 'Priya Sharma',
-      slaRemaining: '48h',
-      progress: 45,
-      status: 'on-track',
-      statusText: 'ON TRACK',
-      budget: '₹4,80,000',
-      location: 'Bangalore, KA',
-      priority: 'MEDIUM'
-    },
-    {
-      id: 'JOB-0430',
-      title: 'Commercial Lighting Retrofit',
-      client: 'GreenTech Solutions',
-      agent: 'Arun Kumar',
-      slaRemaining: '72h',
-      progress: 25,
-      status: 'on-track',
-      statusText: 'ON TRACK',
-      budget: '₹1,20,000',
-      location: 'Hyderabad, TS',
-      priority: 'LOW'
-    }
-  ];
-
-  // Attention Needed Items
-  const attentionItems = [
-    {
-      id: 1,
-      type: 'invoice',
-      title: 'Invoice pending approval',
-      jobId: 'JOB-0391',
-      time: '2 days ago',
-      priority: 'medium',
-      action: 'Review'
-    },
-    {
-      id: 2,
-      type: 'proof',
-      title: 'Proof pending upload',
-      jobId: 'JOB-0428',
-      time: '6 hours ago',
-      priority: 'high',
-      action: 'Upload'
-    },
-    {
-      id: 3,
-      type: 'message',
-      title: 'New message from Agent',
-      jobId: 'JOB-0429',
-      time: '1 hour ago',
-      priority: 'low',
-      action: 'Reply'
-    }
-  ];
-
-  // AI Suggestions
-  const aiSuggestions = [
-    {
-      id: 1,
-      type: 'deadline',
-      title: 'Finish JOB-0428 before 6 PM',
-      description: 'Avoid potential penalty of ₹12,000',
-      urgency: 'high',
-      action: 'Go to Job'
-    },
-    {
-      id: 2,
-      type: 'opportunity',
-      title: 'You match 3 high value jobs',
-      description: 'Total value: ₹28,00,000',
-      urgency: 'medium',
-      action: 'Find New Jobs'
-    },
-    {
-      id: 3,
-      type: 'achievement',
-      title: 'Reach Top 5% SLA rank',
-      description: 'Maintain current streak for 7 more days',
-      urgency: 'low',
-      action: 'View Performance'
-    }
-  ];
-
-  // Performance Data
-  const slaGrades = [
-    { month: 'Jan', score: 94.5 },
-    { month: 'Feb', score: 95.2 },
-    { month: 'Mar', score: 96.8 },
-    { month: 'Apr', score: 97.1 },
-    { month: 'May', score: 96.2 },
-    { month: 'Jun', score: 95.9 }
-  ];
+  const ongoingJobs = dashboardData.ongoingJobs || [];
+  const attentionItems = dashboardData.attentionItems || [];
+  const aiSuggestions = dashboardData.aiSuggestions || [];
+  const slaGrades = dashboardData.slaGrades || [];
 
   const getStatusColor = (status) => {
-    switch(status) {
+    switch (status) {
       case 'on-track': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
       case 'at-risk': return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'delayed': return 'bg-red-100 text-red-800 border-red-200';
@@ -187,7 +113,7 @@ const ContractorDashboard = () => {
   };
 
   const getPriorityColor = (priority) => {
-    switch(priority) {
+    switch (priority) {
       case 'HIGH': return 'bg-red-100 text-red-800';
       case 'MEDIUM': return 'bg-amber-100 text-amber-800';
       case 'LOW': return 'bg-blue-100 text-blue-800';
@@ -196,7 +122,7 @@ const ContractorDashboard = () => {
   };
 
   const getAttentionIcon = (type) => {
-    switch(type) {
+    switch (type) {
       case 'invoice': return <FileText className="w-5 h-5 text-blue-600" />;
       case 'proof': return <Upload className="w-5 h-5 text-amber-600" />;
       case 'message': return <MessageSquare className="w-5 h-5 text-emerald-600" />;
@@ -205,7 +131,7 @@ const ContractorDashboard = () => {
   };
 
   const getSuggestionIcon = (type) => {
-    switch(type) {
+    switch (type) {
       case 'deadline': return <ClockAlert className="w-5 h-5 text-red-600" />;
       case 'opportunity': return <DollarSign className="w-5 h-5 text-emerald-600" />;
       case 'achievement': return <Trophy className="w-5 h-5 text-amber-600" />;
@@ -268,7 +194,7 @@ const ContractorDashboard = () => {
             <h2 className="text-2xl font-bold text-gray-900">Performance Overview</h2>
             <p className="text-gray-600">Your SLA, risk, and job status at a glance</p>
           </div>
-          <select 
+          <select
             value={timeFilter}
             onChange={(e) => setTimeFilter(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-xl bg-white text-sm font-medium"
@@ -309,7 +235,7 @@ const ContractorDashboard = () => {
             <div className="bg-white border border-gray-300 rounded-xl p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-bold text-gray-900">Ongoing Jobs</h3>
-                <button 
+                <button
                   onClick={() => navigate('/contractor/jobs')}
                   className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
                 >
@@ -362,18 +288,17 @@ const ContractorDashboard = () => {
                     {/* Progress Bar */}
                     <div className="mb-4">
                       <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full ${
-                            job.status === 'at-risk' ? 'bg-amber-500' : 
+                        <div
+                          className={`h-full ${job.status === 'at-risk' ? 'bg-amber-500' :
                             job.status === 'delayed' ? 'bg-red-500' : 'bg-emerald-500'
-                          }`}
+                            }`}
                           style={{ width: `${job.progress}%` }}
                         />
                       </div>
                     </div>
 
                     <div className="flex justify-end">
-                      <button 
+                      <button
                         onClick={() => navigate(`/contractor/jobs/${job.id}`)}
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm"
                       >
@@ -418,23 +343,23 @@ const ContractorDashboard = () => {
             {/* SLA Grading Chart */}
             <div className="bg-white border border-gray-300 rounded-xl p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-6">Your SLA Performance</h3>
-              
+
               <div className="flex flex-col items-center mb-6">
                 {/* Circular Grade */}
                 <div className="relative w-40 h-40 mb-4">
                   <svg className="w-full h-full" viewBox="0 0 100 100">
                     {/* Background Circle */}
-                    <circle 
-                      cx="50" cy="50" r="45" 
-                      fill="none" 
-                      stroke="#e5e7eb" 
+                    <circle
+                      cx="50" cy="50" r="45"
+                      fill="none"
+                      stroke="#e5e7eb"
                       strokeWidth="8"
                     />
                     {/* Progress Circle */}
-                    <circle 
-                      cx="50" cy="50" r="45" 
-                      fill="none" 
-                      stroke="#4f46e5" 
+                    <circle
+                      cx="50" cy="50" r="45"
+                      fill="none"
+                      stroke="#4f46e5"
                       strokeWidth="8"
                       strokeLinecap="round"
                       strokeDasharray="283"
@@ -548,7 +473,7 @@ const ContractorDashboard = () => {
                   </div>
                 </div>
 
-                <button 
+                <button
                   onClick={() => navigate('/contractor/profile')}
                   className="w-full py-3 border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium rounded-lg"
                 >
@@ -598,7 +523,7 @@ const ContractorDashboard = () => {
                 <Download className="w-4 h-4 inline mr-1" />
                 Export
               </button>
-              <button 
+              <button
                 onClick={() => navigate('/contractor/performance')}
                 className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium"
               >
@@ -613,7 +538,7 @@ const ContractorDashboard = () => {
               <div key={index} className="flex flex-col items-center flex-1">
                 <div className="text-xs text-gray-500 mb-2">{month.month}</div>
                 <div className="relative w-8">
-                  <div 
+                  <div
                     className="w-8 bg-gradient-to-t from-blue-500 to-indigo-600 rounded-t-lg transition-all duration-300 hover:opacity-80 cursor-pointer"
                     style={{ height: `${(month.score / 100) * 180}px` }}
                     title={`${month.score}%`}
@@ -693,21 +618,21 @@ const ContractorDashboard = () => {
             <Home className="w-5 h-5" />
             <span className="text-xs mt-1">Dashboard</span>
           </button>
-          <button 
+          <button
             onClick={() => navigate('/contractor/jobs')}
             className="flex flex-col items-center p-2 text-gray-500"
           >
             <Briefcase className="w-5 h-5" />
             <span className="text-xs mt-1">Jobs</span>
           </button>
-          <button 
+          <button
             onClick={() => navigate('/contractor/profile')}
             className="flex flex-col items-center p-2 text-gray-500"
           >
             <User className="w-5 h-5" />
             <span className="text-xs mt-1">Profile</span>
           </button>
-          <button 
+          <button
             onClick={() => navigate('/contractor/performance')}
             className="flex flex-col items-center p-2 text-gray-500"
           >

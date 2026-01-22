@@ -1,5 +1,6 @@
 // pages/AgentApplications.jsx
 import React, { useState, useEffect } from 'react';
+import api from '../../services/api';
 import {
   Search,
   Filter,
@@ -62,64 +63,67 @@ const AgentApplications = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [expandedJobs, setExpandedJobs] = useState([]);
   const [selectedAgentApplications, setSelectedAgentApplications] = useState([]);
+  const [jobGroups, setJobGroups] = useState([]); // Dynamic data
+  const [kpis, setKpis] = useState([
+    { label: 'Total AgentApplications', value: '0', trend: '0%', trendUp: true, icon: <Package size={20} className="text-blue-500" />, color: 'from-blue-50 to-blue-100', border: 'border-blue-200' },
+    // ... Initial/Loading state for others or empty
+  ]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchApplications = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get('/agent/applications');
+        // Assuming response structure: { jobs: [], stats: {} }
+        if (response.data.jobs) {
+          setJobGroups(response.data.jobs);
+        }
+        if (response.data.stats) {
+          // Update KPIs based on stats
+          // detailed mapping would go here
+        }
+      } catch (error) {
+        console.error("Error fetching applications:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchApplications();
+  }, []);
+
   const [showComparison, setShowComparison] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [sortBy, setSortBy] = useState('latest');
-  const [viewMode, setViewMode] = useState('grid'); // grid or list
+  const [viewMode, setViewMode] = useState('grid');
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
 
   // Enhanced KPI Data with trends
-  const kpis = [
-    { 
-      label: 'Total AgentApplications', 
-      value: '142', 
-      trend: '+8%', 
-      trendUp: true,
-      icon: <Package size={20} className="text-blue-500" />,
-      color: 'from-blue-50 to-blue-100',
-      border: 'border-blue-200'
-    },
-    { 
-      label: 'New Today', 
-      value: '24', 
-      trend: '+12%', 
-      trendUp: true,
-      icon: <Zap size={20} className="text-green-500" />,
-      color: 'from-green-50 to-emerald-100',
-      border: 'border-green-200'
-    },
-    { 
-      label: 'Awaiting Review', 
-      value: '38', 
-      trend: '-5%', 
-      trendUp: false,
-      icon: <Clock size={20} className="text-yellow-500" />,
-      color: 'from-yellow-50 to-amber-100',
-      border: 'border-yellow-200'
-    },
-    { 
-      label: 'Approved', 
-      value: '67', 
-      trend: '+15%', 
+
+  const kpiData = [
+    {
+      label: 'Approved',
+      value: '67',
+      trend: '+15%',
       trendUp: true,
       icon: <CheckCircle size={20} className="text-emerald-500" />,
       color: 'from-emerald-50 to-teal-100',
       border: 'border-emerald-200'
     },
-    { 
-      label: 'Rejected', 
-      value: '32', 
-      trend: '+3%', 
+    {
+      label: 'Rejected',
+      value: '32',
+      trend: '+3%',
       trendUp: false,
       icon: <XCircle size={20} className="text-red-500" />,
       color: 'from-red-50 to-rose-100',
       border: 'border-red-200'
     },
-    { 
-      label: 'Conversion Rate', 
-      value: '47.2%', 
-      trend: '+2.4%', 
+    {
+      label: 'Conversion Rate',
+      value: '47.2%',
+      trend: '+2.4%',
       trendUp: true,
       icon: <Percent size={20} className="text-purple-500" />,
       color: 'from-purple-50 to-violet-100',
@@ -127,165 +131,7 @@ const AgentApplications = () => {
     },
   ];
 
-  // Enhanced job groups with more data
-  const jobGroups = [
-    {
-      id: 'JOB-0428',
-      title: 'Electrical Panel Upgrade',
-      location: 'Chennai, TN',
-      priority: 'HIGH',
-      budget: '₹2,50,000',
-      actualBids: '₹2,30,000 - ₹2,60,000',
-      slaRemaining: '48h',
-      slaStatus: 'ON_TRACK',
-      riskLevel: 'Low',
-      totalAgentApplications: 8,
-      newAgentApplications: 3,
-      shortlisted: 2,
-      client: 'Global Corp Ltd',
-      clientRating: 4.8,
-      projectType: 'Industrial',
-      startDate: 'Mar 25, 2024',
-      photos: 12,
-      tags: ['Electrical', 'Safety', 'Industrial'],
-      Agentapplications: [
-        {
-          id: 'APP-001',
-          contractor: 'Alex Mendez',
-          company: 'Elite Electrical Solutions',
-          rating: 4.6,
-          reviews: 128,
-          pastJobs: 42,
-          successRate: 96,
-          reliability: 98,
-          bidAmount: '₹2,40,000',
-          estimatedTime: '3 Days',
-          actualTime: '2.5 Days',
-          riskScore: 12,
-          riskLevel: 'Low',
-          appliedTime: '2h ago',
-          status: 'new',
-          skills: ['Wiring', 'Safety Compliance', 'Circuit Design', 'Automation'],
-          proposal: 'Complete panel replacement with smart monitoring and IoT integration. Includes 2-year warranty.',
-          email: 'alex@eliteelectricals.com',
-          phone: '+91 9876543210',
-          location: 'Chennai',
-          experience: '8 years',
-          certifications: ['ISO 9001', 'Electrical Safety'],
-          attachments: 3,
-          lastActive: 'Online',
-          responseTime: '15 mins',
-          portfolio: 'https://portfolio.eliteelectricals.com'
-        },
-        {
-          id: 'APP-002',
-          contractor: 'Rahul Sharma',
-          company: 'PowerTech Solutions',
-          rating: 4.8,
-          reviews: 214,
-          pastJobs: 67,
-          successRate: 98,
-          reliability: 99,
-          bidAmount: '₹2,55,000',
-          estimatedTime: '4 Days',
-          actualTime: '3.2 Days',
-          riskScore: 8,
-          riskLevel: 'Very Low',
-          appliedTime: '1d ago',
-          status: 'reviewed',
-          skills: ['HV Systems', 'Automation', 'Testing', 'Smart Grid'],
-          proposal: 'Advanced smart panel with remote monitoring and predictive maintenance capabilities.',
-          email: 'rahul@powertech.com',
-          phone: '+91 8765432109',
-          location: 'Bangalore',
-          experience: '12 years',
-          certifications: ['ISO 14001', 'LEED'],
-          attachments: 5,
-          lastActive: '2h ago',
-          responseTime: '30 mins',
-          portfolio: 'https://powertech-solutions.com'
-        },
-        {
-          id: 'APP-003',
-          contractor: 'Karthik Venkat',
-          company: 'SafeWires Engineering',
-          rating: 4.3,
-          reviews: 89,
-          pastJobs: 23,
-          successRate: 88,
-          reliability: 92,
-          bidAmount: '₹2,30,000',
-          estimatedTime: '5 Days',
-          actualTime: '4.8 Days',
-          riskScore: 35,
-          riskLevel: 'Medium',
-          appliedTime: '3h ago',
-          status: 'new',
-          skills: ['Residential', 'Commercial', 'Safety'],
-          proposal: 'Focus on safety compliance with detailed documentation and certification.',
-          email: 'karthik@safewires.com',
-          phone: '+91 7654321098',
-          location: 'Chennai',
-          experience: '5 years',
-          certifications: ['OSHA'],
-          attachments: 2,
-          lastActive: 'Online',
-          responseTime: '45 mins',
-          portfolio: 'https://safewires-eng.com'
-        }
-      ]
-    },
-    {
-      id: 'JOB-0429',
-      title: 'HVAC System Installation - Corporate Office',
-      location: 'Bangalore, KA',
-      priority: 'MEDIUM',
-      budget: '₹4,80,000',
-      actualBids: '₹4,50,000 - ₹5,20,000',
-      slaRemaining: '72h',
-      slaStatus: 'AT_RISK',
-      riskLevel: 'Medium',
-      totalAgentApplications: 6,
-      newAgentApplications: 1,
-      shortlisted: 3,
-      client: 'Tech Solutions Inc',
-      clientRating: 4.6,
-      projectType: 'Commercial',
-      startDate: 'Mar 28, 2024',
-      photos: 8,
-      tags: ['HVAC', 'Commercial', 'Energy Efficient'],
-      Agentapplications: [
-        {
-          id: 'APP-004',
-          contractor: 'Suresh Kumar',
-          company: 'CoolTech Climate Systems',
-          rating: 4.7,
-          reviews: 156,
-          pastJobs: 48,
-          successRate: 94,
-          reliability: 96,
-          bidAmount: '₹4,75,000',
-          estimatedTime: '6 Days',
-          actualTime: '5.5 Days',
-          riskScore: 15,
-          riskLevel: 'Low',
-          appliedTime: '5h ago',
-          status: 'reviewed',
-          skills: ['HVAC', 'Ducting', 'Energy Efficient', 'IoT'],
-          proposal: 'Energy efficient VRF system with IoT monitoring and smart controls.',
-          email: 'suresh@cooltech.com',
-          phone: '+91 6543210987',
-          location: 'Bangalore',
-          experience: '10 years',
-          certifications: ['ASHRAE', 'Energy Star'],
-          attachments: 4,
-          lastActive: '1h ago',
-          responseTime: '20 mins',
-          portfolio: 'https://cooltech-systems.com'
-        }
-      ]
-    }
-  ];
+  // Job Groups structure handled in state
 
   // Advanced filters
   const advancedFilters = [
@@ -296,7 +142,7 @@ const AgentApplications = () => {
   ];
 
   const getStatusColor = (status) => {
-    switch(status) {
+    switch (status) {
       case 'new': return 'bg-blue-500/10 text-blue-700 border border-blue-200';
       case 'reviewed': return 'bg-amber-500/10 text-amber-700 border border-amber-200';
       case 'shortlisted': return 'bg-purple-500/10 text-purple-700 border border-purple-200';
@@ -307,7 +153,7 @@ const AgentApplications = () => {
   };
 
   const getPriorityColor = (priority) => {
-    switch(priority) {
+    switch (priority) {
       case 'HIGH': return 'bg-rose-500/10 text-rose-700 border border-rose-200';
       case 'MEDIUM': return 'bg-amber-500/10 text-amber-700 border border-amber-200';
       case 'LOW': return 'bg-emerald-500/10 text-emerald-700 border border-emerald-200';
@@ -316,7 +162,7 @@ const AgentApplications = () => {
   };
 
   const getRiskColor = (risk) => {
-    switch(risk) {
+    switch (risk) {
       case 'Very Low': return 'bg-emerald-100 text-emerald-800';
       case 'Low': return 'bg-green-100 text-green-800';
       case 'Medium': return 'bg-yellow-100 text-yellow-800';
@@ -336,12 +182,20 @@ const AgentApplications = () => {
 
   const ProgressBar = ({ percentage, color = 'bg-blue-500' }) => (
     <div className="w-full bg-gray-200 rounded-full h-2">
-      <div 
+      <div
         className={`h-2 rounded-full ${color}`}
         style={{ width: `${percentage}%` }}
       />
     </div>
   );
+
+  const handleApprove = (id) => {
+    console.log("Approved application:", id);
+  };
+
+  const handleReject = (id) => {
+    console.log("Rejected application:", id);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100/50 font-sans">
@@ -361,13 +215,13 @@ const AgentApplications = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <button className="px-4 py-2.5 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 flex items-center gap-2">
                 <DownloadCloud size={18} />
                 Export
               </button>
-              <button 
+              <button
                 onClick={() => setAnalyticsOpen(!analyticsOpen)}
                 className="px-4 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl hover:from-blue-600 hover:to-indigo-600 flex items-center gap-2"
               >
@@ -407,8 +261,8 @@ const AgentApplications = () => {
           {/* Enhanced KPI Cards */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
             {kpis.map((kpi, index) => (
-              <div 
-                key={index} 
+              <div
+                key={index}
                 className={`bg-white border ${kpi.border} rounded-xl p-4 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer`}
               >
                 <div className="flex items-center justify-between mb-2">
@@ -447,7 +301,7 @@ const AgentApplications = () => {
                             <span className="font-mono font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">#{job.id}</span>
                             <h3 className="text-xl font-bold text-gray-900">{job.title}</h3>
                           </div>
-                          
+
                           <div className="flex flex-wrap items-center gap-3 mb-3">
                             <div className="flex items-center gap-1 text-gray-600">
                               <Building size={14} />
@@ -533,7 +387,7 @@ const AgentApplications = () => {
                           )}
                         </button>
                       </div>
-                      
+
                       <div className="flex gap-2">
                         <button className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg flex items-center gap-1">
                           <ExternalLink size={14} />
@@ -597,7 +451,7 @@ const AgentApplications = () => {
                                 </div>
                               </div>
                             </div>
-                            
+
                             <button className="p-2 hover:bg-gray-100 rounded-lg">
                               <MoreVertical size={18} />
                             </button>
@@ -652,7 +506,7 @@ const AgentApplications = () => {
                           {/* Action Buttons */}
                           <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                             <div className="flex items-center gap-2">
-                              <button 
+                              <button
                                 onClick={() => setSelectedApplication(app)}
                                 className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg flex items-center gap-1"
                               >
@@ -665,14 +519,14 @@ const AgentApplications = () => {
                               </button>
                             </div>
                             <div className="flex items-center gap-2">
-                              <button 
+                              <button
                                 onClick={() => handleApprove(app.id)}
                                 className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 text-sm font-medium rounded-lg flex items-center gap-1"
                               >
                                 <Check size={14} />
                                 Approve
                               </button>
-                              <button 
+                              <button
                                 onClick={() => handleReject(app.id)}
                                 className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-sm font-medium rounded-lg flex items-center gap-1"
                               >
@@ -699,18 +553,15 @@ const AgentApplications = () => {
                 Quick Stats
               </h3>
               <div className="space-y-4">
-                <div>
-                  <div className="text-xs text-gray-500 mb-1">Avg Response Time</div>
-                  <div className="text-lg font-bold text-gray-900">2.4 hours</div>
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500 mb-1">Avg Rating</div>
-                  <div className="text-lg font-bold text-gray-900">4.7/5.0</div>
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500 mb-1">Cost Savings</div>
-                  <div className="text-lg font-bold text-emerald-600">₹1,24,500</div>
-                </div>
+                {kpiData.map((stat, idx) => (
+                  <div key={idx}>
+                    <div className="text-xs text-gray-500 mb-1">{stat.label}</div>
+                    <div className="text-lg font-bold text-gray-900">{stat.value}</div>
+                    <div className={`text-xs font-medium ${stat.trendUp ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {stat.trend}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 

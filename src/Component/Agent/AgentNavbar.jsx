@@ -1,17 +1,17 @@
 // components/AgentNavbar.jsx
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  Search, 
-  Bell, 
-  Plus, 
-  Home, 
-  Briefcase, 
-  FileCheck, 
-  User, 
-  Menu, 
-  X, 
-  ChevronDown 
+import {
+  Search,
+  Bell,
+  Plus,
+  Home,
+  Briefcase,
+  FileCheck,
+  User,
+  Menu,
+  X,
+  ChevronDown
 } from 'lucide-react';
 
 const AgentNavbar = () => {
@@ -21,11 +21,11 @@ const AgentNavbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems = [
-    { id: 'home', label: 'Home', icon: <Home size={20} />, path: '/' },
-    { id: 'search', label: 'Search', icon: <Search size={20} />, path: '/search' },
-    { id: 'jobs', label: 'Jobs', icon: <Briefcase size={20} />, primary: true, path: '/jobs' },
-    { id: 'applications', label: 'Applications', icon: <FileCheck size={20} />, path: '/applications' },
-    { id: 'profile', label: 'Profile', icon: <User size={20} />, path: '/profile' },
+    { id: 'home', label: 'Home', icon: <Home size={20} />, path: '/agent/dashboard' },
+    { id: 'search', label: 'Search', icon: <Search size={20} />, path: '/agent/search' },
+    { id: 'jobs', label: 'Jobs', icon: <Briefcase size={20} />, primary: true, path: '/agent/jobs' },
+    { id: 'applications', label: 'Applications', icon: <FileCheck size={20} />, path: '/agent/applications' },
+    { id: 'profile', label: 'Profile', icon: <User size={20} />, path: '/agent/profile' },
   ];
 
   const activeTab = navItems.find(item => location.pathname === item.path)?.id || 'home';
@@ -36,13 +36,13 @@ const AgentNavbar = () => {
   };
 
   const handleCreateJob = () => {
-    navigate('/jobs?create=true');
+    navigate('/agent/jobs?create=true');
   };
 
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+      navigate(`/agent/search?q=${encodeURIComponent(searchQuery)}`);
       setSearchQuery('');
     }
   };
@@ -53,7 +53,7 @@ const AgentNavbar = () => {
       <nav className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            
+
             {/* Logo & Brand */}
             <div className="flex items-center">
               {/* Mobile menu button */}
@@ -63,11 +63,11 @@ const AgentNavbar = () => {
               >
                 {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
-              
+
               {/* Logo - Click to go home */}
-              <div 
+              <div
                 className="flex items-center cursor-pointer"
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/agent/dashboard')}
               >
                 <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center shadow-sm">
                   <span className="text-white font-bold text-lg">V</span>
@@ -89,11 +89,10 @@ const AgentNavbar = () => {
                   <button
                     key={item.id}
                     onClick={() => handleNavigation(item.path)}
-                    className={`px-4 py-2.5 rounded-lg font-medium flex items-center space-x-2 transition-all ${
-                      activeTab === item.id
+                    className={`px-4 py-2.5 rounded-lg font-medium flex items-center space-x-2 transition-all ${activeTab === item.id
                         ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-100 shadow-sm'
                         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
+                      }`}
                   >
                     {item.icon}
                     <span className="text-sm font-medium">{item.label}</span>
@@ -117,7 +116,7 @@ const AgentNavbar = () => {
               </form>
 
               {/* Create Job Button */}
-              <button 
+              <button
                 onClick={handleCreateJob}
                 className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-2.5 rounded-xl font-semibold flex items-center space-x-2 shadow-sm hover:shadow transition-all"
               >
@@ -126,8 +125,8 @@ const AgentNavbar = () => {
               </button>
 
               {/* Notifications */}
-              <button 
-                onClick={() => navigate('/notifications')}
+              <button
+                onClick={() => navigate('/agent/notifications')}
                 className="relative p-2.5 text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
               >
                 <Bell size={20} />
@@ -135,9 +134,9 @@ const AgentNavbar = () => {
               </button>
 
               {/* User Profile */}
-              <div 
+              <div
                 className="flex items-center space-x-2 ml-2 cursor-pointer"
-                onClick={() => navigate('/profile')}
+                onClick={() => navigate('/agent/profile')}
               >
                 <div className="w-9 h-9 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl flex items-center justify-center border border-gray-200">
                   <User size={18} className="text-blue-600" />
@@ -168,16 +167,15 @@ const AgentNavbar = () => {
                   className="w-full pl-10 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 text-sm"
                 />
               </form>
-              
+
               {navItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => handleNavigation(item.path)}
-                  className={`w-full px-4 py-3 rounded-xl flex items-center space-x-3 ${
-                    activeTab === item.id
+                  className={`w-full px-4 py-3 rounded-xl flex items-center space-x-3 ${activeTab === item.id
                       ? 'bg-blue-50 text-blue-700 border border-blue-100'
                       : 'text-gray-700 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   <div className={`p-2 rounded-lg ${activeTab === item.id ? 'bg-blue-100' : 'bg-gray-100'}`}>
                     {item.icon}
@@ -197,9 +195,8 @@ const AgentNavbar = () => {
             <button
               key={item.id}
               onClick={() => handleNavigation(item.path)}
-              className={`flex flex-col items-center p-2 relative ${
-                activeTab === item.id ? 'text-blue-600' : 'text-gray-500'
-              } ${item.primary ? '-mt-5' : ''}`}
+              className={`flex flex-col items-center p-2 relative ${activeTab === item.id ? 'text-blue-600' : 'text-gray-500'
+                } ${item.primary ? '-mt-5' : ''}`}
             >
               {item.primary ? (
                 <div className={`p-4 rounded-full shadow-lg ${activeTab === item.id ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-blue-200' : 'bg-gray-100 text-gray-600'}`}>
@@ -213,7 +210,7 @@ const AgentNavbar = () => {
                   <span className="text-xs mt-1">{item.label}</span>
                 </>
               )}
-              
+
               {/* Active indicator */}
               {activeTab === item.id && !item.primary && (
                 <div className="absolute -top-0.5 w-1.5 h-1.5 bg-blue-600 rounded-full"></div>

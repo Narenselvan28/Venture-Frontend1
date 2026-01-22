@@ -1,5 +1,6 @@
 // pages/AgentJobs.jsx
 import React, { useState, useEffect } from 'react';
+import api from '../../services/api';
 import {
   Briefcase,
   Search,
@@ -14,7 +15,7 @@ import {
   Users,
   MapPin,
   DollarSign,
-  TrendingUp, 
+  TrendingUp,
   Loader,
   FileText,
   Download,
@@ -27,124 +28,58 @@ import {
   Plus,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-const navigate=useNavigate;
+
 const AgentJobs = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedJob, setSelectedJob] = useState(null);
-  
-  // Ongoing Agentjobs with completion percentage
-  const ongoingAgentJobs = [
-    {
-      id: "JOB-0428",
-      title: "Electrical Panel Upgrade",
-      client: "Global Logistics Corp",
-      contractor: "Elite Engineering",
-      progress: 30,
-      status: "in_progress",
-      amount: "$2,240",
-      timeRemaining: "48h",
-      location: "Chennai",
-      priority: "high",
-      startDate: "2024-03-20",
-      slaStatus: "on_track",
-      category: "Electrical",
-      skills: ["Wiring", "Circuit Design", "Safety"],
-      budget: "$2,500",
-      photos: 5
-    },
-    {
-      id: "JOB-0427",
-      title: "HVAC System Installation",
-      client: "Tech Solutions Inc",
-      contractor: "Alpha Builders",
-      progress: 65,
-      status: "in_progress",
-      amount: "$3,500",
-      timeRemaining: "24h",
-      location: "Bangalore",
-      priority: "medium",
-      startDate: "2024-03-18",
-      slaStatus: "at_risk",
-      category: "HVAC",
-      skills: ["Installation", "Duct Work", "Testing"],
-      budget: "$3,800",
-      photos: 8
-    },
-    {
-      id: "JOB-0426",
-      title: "Plumbing System Overhaul",
-      client: "MediCare Hospital",
-      contractor: "Swift Services",
-      progress: 85,
-      status: "in_progress",
-      amount: "$4,200",
-      timeRemaining: "12h",
-      location: "Mumbai",
-      priority: "high",
-      startDate: "2024-03-15",
-      slaStatus: "delayed",
-      category: "Plumbing",
-      skills: ["Piping", "Drainage", "Water Supply"],
-      budget: "$4,500",
-      photos: 12
-    },
-    {
-      id: "JOB-0425",
-      title: "Network Cable Installation",
-      client: "Retail Chain Corp",
-      contractor: "Prime Contractors",
-      progress: 45,
-      status: "in_progress",
-      amount: "$1,750",
-      timeRemaining: "72h",
-      location: "Delhi",
-      priority: "low",
-      startDate: "2024-03-22",
-      slaStatus: "on_track",
-      category: "Networking",
-      skills: ["CAT6", "Fiber Optic", "Testing"],
-      budget: "$2,000",
-      photos: 3
-    },
-  ];
 
-  // Completed Agentjobs data (for pagination)
-  const allCompletedAgentJobs = Array.from({ length: 25 }, (_, i) => ({
-    id: `JOB-${1000 + i}`,
-    title: ["Office Renovation", "Server Room Setup", "Electrical Wiring", "AC Installation", "Security System"][i % 5],
-    client: ["Global Corp", "Tech Inc", "Hospital Ltd", "Retail Chain", "Manufacturing"][i % 5],
-    contractor: ["Elite Engineering", "Alpha Builders", "Swift Services", "Prime Contractors", "Pro Builders"][i % 5],
-    status: "completed",
-    amount: `$${(1200 + i * 100).toLocaleString()}`,
-    completionDate: `2024-03-${(20 + i % 10)}`,
-    location: ["Chennai", "Bangalore", "Mumbai", "Delhi", "Hyderabad"][i % 5],
-    rating: 4.5 + (i % 5 * 0.1),
-    feedback: i % 3 === 0 ? "Excellent work!" : "Good job, completed on time.",
-    category: ["Construction", "IT", "Electrical", "HVAC", "Security"][i % 5],
-    invoiceStatus: i % 3 === 0 ? "paid" : "pending"
-  }));
+  const [ongoingAgentJobs, setOngoingAgentJobs] = useState([]);
+  const [completedAgentJobs, setCompletedAgentJobs] = useState([]);
+  const [totalCompleted, setTotalCompleted] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        setLoading(true);
+        // Fetch ongoing jobs
+        const ongoingRes = await api.get('/agent/jobs?status=ongoing');
+        setOngoingAgentJobs(ongoingRes.data);
+
+        // Fetch completed jobs (initial page)
+        const completedRes = await api.get(`/agent/jobs?status=completed&page=${currentPage}`);
+        setCompletedAgentJobs(completedRes.data.jobs);
+        setTotalCompleted(completedRes.data.total);
+      } catch (error) {
+        console.error("Error fetching agent jobs:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJobs();
+  }, [currentPage]);
 
   const itemsPerPage = 3;
-  const totalPages = Math.ceil(allCompletedAgentJobs.length / itemsPerPage);
-  const completedAgentJobs = allCompletedAgentJobs.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const totalPages = Math.ceil(totalCompleted / itemsPerPage);
+
+  // Status colors
 
   // Job filters
   const filters = [
-    { id: 'all', label: 'All AgentJobs', count: ongoingAgentJobs.length + allCompletedAgentJobs.length },
+    { id: 'all', label: 'All AgentJobs', count: ongoingAgentJobs.length + totalCompleted },
     { id: 'ongoing', label: 'Ongoing', count: ongoingAgentJobs.length },
-    { id: 'completed', label: 'Completed', count: allCompletedAgentJobs.length },
+    { id: 'completed', label: 'Completed', count: totalCompleted },
     { id: 'at_risk', label: 'At Risk', count: ongoingAgentJobs.filter(j => j.slaStatus === 'at_risk').length },
     { id: 'delayed', label: 'Delayed', count: ongoingAgentJobs.filter(j => j.slaStatus === 'delayed').length },
   ];
 
   // Status colors
   const getStatusColor = (status) => {
-    switch(status) {
+    switch (status) {
       case "completed": return "bg-green-100 text-green-700 border-green-200";
       case "in_progress": return "bg-blue-100 text-blue-700 border-blue-200";
       case "pending": return "bg-yellow-100 text-yellow-700 border-yellow-200";
@@ -153,7 +88,7 @@ const AgentJobs = () => {
   };
 
   const getPriorityColor = (priority) => {
-    switch(priority) {
+    switch (priority) {
       case "high": return "bg-red-500";
       case "medium": return "bg-yellow-500";
       case "low": return "bg-green-500";
@@ -162,7 +97,7 @@ const AgentJobs = () => {
   };
 
   const getSLAStatusColor = (status) => {
-    switch(status) {
+    switch (status) {
       case "on_track": return "text-green-600 bg-green-50 border-green-200";
       case "at_risk": return "text-yellow-600 bg-yellow-50 border-yellow-200";
       case "delayed": return "text-red-600 bg-red-50 border-red-200";
@@ -171,7 +106,7 @@ const AgentJobs = () => {
   };
 
   const getSLAStatusIcon = (status) => {
-    switch(status) {
+    switch (status) {
       case "on_track": return <CheckCircle size={14} />;
       case "at_risk": return <AlertTriangle size={14} />;
       case "delayed": return <Clock size={14} />;
@@ -186,13 +121,13 @@ const AgentJobs = () => {
   };
 
   const handleViewDetails = () => {
-    navigate("/agenttimeline");
+    navigate("/agent/timeline");
     // In a real app, this would navigate to job details page
   };
 
   const handleCreateJob = () => {
     // Navigate to create job page
-    console.log('Navigate to create job');
+    navigate('/agent/jobs?create=true');
   };
 
   const handleApproveInvoice = (jobId) => {
@@ -216,8 +151,8 @@ const AgentJobs = () => {
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900">AgentJobs Dashboard</h1>
               <p className="text-gray-600 mt-1">Manage and track all your ongoing and completed Agentjobs</p>
             </div>
-            
-            <button 
+
+            <button
               onClick={handleCreateJob}
               className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 py-3 rounded-xl font-semibold flex items-center space-x-2 shadow-sm hover:shadow transition-all self-start"
             >
@@ -238,7 +173,7 @@ const AgentJobs = () => {
                 className="w-full pl-12 pr-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all"
               />
             </div>
-            
+
             <div className="flex items-center gap-3">
               <select className="px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-blue-400 focus:outline-none">
                 <option>Sort by: Latest</option>
@@ -258,11 +193,10 @@ const AgentJobs = () => {
               <button
                 key={filter.id}
                 onClick={() => setActiveFilter(filter.id)}
-                className={`px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 ${
-                  activeFilter === filter.id
-                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200 shadow-sm'
-                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-                }`}
+                className={`px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 ${activeFilter === filter.id
+                  ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200 shadow-sm'
+                  : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+                  }`}
               >
                 <span>{filter.label}</span>
                 <span className="bg-gray-100 text-gray-600 text-xs font-bold px-2 py-0.5 rounded">
@@ -287,14 +221,14 @@ const AgentJobs = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {ongoingAgentJobs.map((job) => (
-              <div 
-                key={job.id} 
+              <div
+                key={job.id}
                 className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
               >
                 {/* Progress Bar Background */}
                 <div className="relative h-2">
                   <div className="absolute inset-0 bg-gray-200"></div>
-                  <div 
+                  <div
                     className={`absolute inset-0 bg-gradient-to-r ${getProgressColor(job.progress)}`}
                     style={{ width: `${job.progress}%` }}
                   ></div>
@@ -315,7 +249,7 @@ const AgentJobs = () => {
                           <span className="text-xs text-gray-500">{job.priority} priority</span>
                         </div>
                       </div>
-                      
+
                       <h3 className="text-lg font-bold text-gray-900">{job.title}</h3>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-sm text-gray-600">{job.category}</span>
@@ -326,7 +260,7 @@ const AgentJobs = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="text-right">
                       <div className="text-xl font-bold text-gray-900">{job.amount}</div>
                       <div className="text-sm text-gray-500">Budget: {job.budget}</div>
@@ -342,7 +276,7 @@ const AgentJobs = () => {
                       </span>
                     </div>
                     <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className={`h-full bg-gradient-to-r ${getProgressColor(job.progress)}`}
                         style={{ width: `${job.progress}%` }}
                       ></div>
@@ -379,8 +313,8 @@ const AgentJobs = () => {
                         <span className="text-xs text-gray-600">Remaining: {job.timeRemaining}</span>
                       </div>
                     </div>
-                    
-                    <button 
+
+                    <button
                       onClick={() => handleViewDetails()}
                       className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white text-sm font-semibold rounded-lg flex items-center gap-2 transition-all shadow-sm"
                     >
@@ -402,14 +336,14 @@ const AgentJobs = () => {
               Completed AgentJobs
             </h2>
             <div className="text-sm text-gray-500">
-              Showing {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, allCompletedAgentJobs.length)} of {allCompletedAgentJobs.length} Agentjobs
+              Showing {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalCompleted)} of {totalCompleted} Agentjobs
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             {completedAgentJobs.map((job) => (
-              <div 
-                key={job.id} 
+              <div
+                key={job.id}
                 className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
               >
                 <div className="p-6">
@@ -427,7 +361,7 @@ const AgentJobs = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(job.status)}`}>
                       COMPLETED
                     </div>
@@ -465,11 +399,10 @@ const AgentJobs = () => {
                         <Star size={14} className="text-amber-500 fill-amber-500" />
                         <span className="text-sm font-medium text-gray-900">{job.rating.toFixed(1)}</span>
                       </div>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                        job.invoiceStatus === 'paid' 
-                          ? 'bg-green-100 text-green-700' 
-                          : 'bg-yellow-100 text-yellow-700'
-                      }`}>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${job.invoiceStatus === 'paid'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-yellow-100 text-yellow-700'
+                        }`}>
                         {job.invoiceStatus.toUpperCase()}
                       </span>
                     </div>
@@ -479,7 +412,7 @@ const AgentJobs = () => {
 
                   {/* Actions */}
                   <div className="grid grid-cols-2 gap-3">
-                    <button 
+                    <button
                       onClick={() => handleViewDetails()}
                       className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white text-sm font-semibold rounded-lg flex items-center gap-2 justify-center transition-all"
                     >
@@ -510,21 +443,20 @@ const AgentJobs = () => {
                 >
                   <ChevronLeft size={20} />
                 </button>
-                
+
                 {[...Array(totalPages)].map((_, i) => (
                   <button
                     key={i}
                     onClick={() => setCurrentPage(i + 1)}
-                    className={`w-10 h-10 rounded-lg font-medium ${
-                      currentPage === i + 1
-                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
+                    className={`w-10 h-10 rounded-lg font-medium ${currentPage === i + 1
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
+                      : 'text-gray-700 hover:bg-gray-100'
+                      }`}
                   >
                     {i + 1}
                   </button>
                 ))}
-                
+
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                   disabled={currentPage === totalPages}
@@ -540,7 +472,7 @@ const AgentJobs = () => {
         {/* Workflow Options Section */}
         <section className="mt-12 pt-8 border-t border-gray-200">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Job Management Workflow</h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Create Job */}
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-5">
@@ -549,7 +481,7 @@ const AgentJobs = () => {
               </div>
               <h3 className="font-bold text-gray-900 mb-2">Create New Job</h3>
               <p className="text-sm text-gray-600 mb-4">Publish new job requests with detailed requirements</p>
-              <button 
+              <button
                 onClick={handleCreateJob}
                 className="text-blue-600 text-sm font-semibold hover:text-blue-700"
               >
@@ -603,7 +535,7 @@ const AgentJobs = () => {
             <div className="p-6 border-b border-gray-200">
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold text-gray-900">Job Details: {selectedJob.id}</h3>
-                <button 
+                <button
                   onClick={() => setSelectedJob(null)}
                   className="p-2 hover:bg-gray-100 rounded-lg"
                 >
@@ -611,14 +543,14 @@ const AgentJobs = () => {
                 </button>
               </div>
             </div>
-            
+
             <div className="p-6">
               {/* Job details would be shown here */}
               <div className="mb-6">
                 <h4 className="font-bold text-gray-900 mb-2">Title: {selectedJob.title}</h4>
                 <p className="text-gray-600">Category: {selectedJob.category}</p>
               </div>
-              <button 
+              <button
                 onClick={() => setSelectedJob(null)}
                 className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg"
               >

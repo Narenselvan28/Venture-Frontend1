@@ -1,5 +1,7 @@
 // pages/ContractorJobFeed.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import api from '../../services/api';
 import {
   Search, Filter, MapPin, Clock, DollarSign,
   TrendingUp, Star, Heart, Eye, Users,
@@ -14,16 +16,18 @@ import {
 } from 'lucide-react';
 
 const ContractorJobFeed = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedJob, setSelectedJob] = useState(null);
   const [showFilters, setShowFilters] = useState(true);
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [showJobDetails, setShowJobDetails] = useState(false);
-  const [savedJobs, setSavedJobs] = useState(['JOB-0428', 'JOB-0432']);
-  const [appliedJobs, setAppliedJobs] = useState(['JOB-0427']);
-  
-  // Filter states
+  const [savedJobs, setSavedJobs] = useState([]);
+  const [appliedJobs, setAppliedJobs] = useState([]);
+  const [jobListings, setJobListings] = useState([]);
+  // Filters State
   const [filters, setFilters] = useState({
     skills: [],
     location: '',
@@ -35,169 +39,29 @@ const ContractorJobFeed = () => {
     sortBy: 'latest'
   });
 
-  // Job data
-  const jobListings = [
-    {
-      id: 'JOB-0428',
-      title: 'Electrical Panel Upgrade - Apollo Hospital',
-      category: 'Electrical',
-      subCategory: 'Industrial',
-      description: 'Upgrade of main electrical panel with safety compliance for hospital facility',
-      location: 'Velacherry, Chennai - 600028',
-      slaStatus: 'on-track',
-      slaHours: '48',
-      priority: 'HIGH',
-      budget: '₹2,50,000',
-      views: '1.2k',
-      applications: 120,
-      applied: false,
-      matchScore: 92,
-      company: 'Venture Infra Ltd',
-      agent: 'Selvakumar S',
-      agentRating: 4.8,
-      posted: '3 hours ago',
-      urgent: true,
-      fastPayout: true,
-      images: ['/api/placeholder/400/250'],
-      skills: ['Electrical', 'Panel Installation', 'Safety Compliance'],
-      timeline: '7 days',
-      scope: 'Full panel replacement with safety upgrades'
-    },
-    {
-      id: 'JOB-0429',
-      title: 'HVAC System Installation - Corporate Office',
-      category: 'HVAC',
-      subCategory: 'Commercial',
-      description: 'Complete HVAC system installation for new corporate office building',
-      location: 'Rajaji Nagar, Bangalore - 560010',
-      slaStatus: 'at-risk',
-      slaHours: '72',
-      priority: 'MEDIUM',
-      budget: '₹4,80,000',
-      views: '2.1k',
-      applications: 86,
-      applied: false,
-      matchScore: 85,
-      company: 'Global Tech Solutions',
-      agent: 'Priya Sharma',
-      agentRating: 4.9,
-      posted: '1 day ago',
-      urgent: false,
-      fastPayout: true,
-      images: ['/api/placeholder/400/250'],
-      skills: ['HVAC Installation', 'Commercial', 'VRF Systems'],
-      timeline: '14 days',
-      scope: 'Complete HVAC installation with IoT integration'
-    },
-    {
-      id: 'JOB-0430',
-      title: 'Data Center Power Backup System',
-      category: 'Industrial',
-      subCategory: 'Data Center',
-      description: 'Installation of UPS and generator backup system for data center',
-      location: 'Andheri East, Mumbai - 400069',
-      slaStatus: 'critical',
-      slaHours: '96',
-      priority: 'HIGH',
-      budget: '₹15,00,000',
-      views: '3.4k',
-      applications: 45,
-      applied: false,
-      matchScore: 78,
-      company: 'DataSecure Inc.',
-      agent: 'Rahul Verma',
-      agentRating: 4.7,
-      posted: '2 days ago',
-      urgent: true,
-      fastPayout: false,
-      images: ['/api/placeholder/400/250'],
-      skills: ['UPS Installation', 'Generator', 'High Voltage'],
-      timeline: '21 days',
-      scope: 'Complete power backup system with redundancy'
-    },
-    {
-      id: 'JOB-0431',
-      title: 'Commercial Building LED Lighting Retrofit',
-      category: 'Electrical',
-      subCategory: 'Commercial',
-      description: 'Retrofit existing lighting system with energy-efficient LED fixtures',
-      location: 'Gachibowli, Hyderabad - 500032',
-      slaStatus: 'on-track',
-      slaHours: '120',
-      priority: 'LOW',
-      budget: '₹1,20,000',
-      views: '0.8k',
-      applications: 65,
-      applied: false,
-      matchScore: 88,
-      company: 'GreenTech Solutions',
-      agent: 'Arun Kumar',
-      agentRating: 4.6,
-      posted: '5 hours ago',
-      urgent: false,
-      fastPayout: true,
-      images: ['/api/placeholder/400/250'],
-      skills: ['Lighting', 'Energy Efficiency', 'Retrofit'],
-      timeline: '10 days',
-      scope: 'Complete lighting retrofit across 5 floors'
-    },
-    {
-      id: 'JOB-0432',
-      title: 'Hospital Fire Safety System Upgrade',
-      category: 'Safety',
-      subCategory: 'Healthcare',
-      description: 'Upgrade fire detection and suppression system for hospital',
-      location: 'Anna Nagar, Chennai - 600040',
-      slaStatus: 'at-risk',
-      slaHours: '48',
-      priority: 'HIGH',
-      budget: '₹3,50,000',
-      views: '1.5k',
-      applications: 32,
-      applied: false,
-      matchScore: 95,
-      company: 'MediSafe Hospitals',
-      agent: 'Dr. Sanjay Mehta',
-      agentRating: 4.9,
-      posted: '8 hours ago',
-      urgent: true,
-      fastPayout: true,
-      images: ['/api/placeholder/400/250'],
-      skills: ['Fire Safety', 'Hospital Compliance', 'System Installation'],
-      timeline: '15 days',
-      scope: 'Complete fire safety system upgrade'
-    },
-    {
-      id: 'JOB-0427',
-      title: 'Industrial Plumbing System Maintenance',
-      category: 'Plumbing',
-      subCategory: 'Industrial',
-      description: 'Preventive maintenance of industrial plumbing system',
-      location: 'Manesar, Gurgaon - 122051',
-      slaStatus: 'on-track',
-      slaHours: '168',
-      priority: 'LOW',
-      budget: '₹85,000',
-      views: '0.9k',
-      applications: 42,
-      applied: true,
-      matchScore: 82,
-      company: 'Industrial Solutions Ltd',
-      agent: 'Vikram Singh',
-      agentRating: 4.5,
-      posted: '3 days ago',
-      urgent: false,
-      fastPayout: false,
-      images: ['/api/placeholder/400/250'],
-      skills: ['Plumbing', 'Maintenance', 'Industrial'],
-      timeline: '5 days',
-      scope: 'Preventive maintenance and minor repairs'
-    }
-  ];
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        setLoading(true);
+        const res = await api.get('/contractor/jobs/feed');
+        if (res.data) {
+          setJobListings(res.data.jobs || []);
+          setSavedJobs(res.data.savedJobs || []);
+          setAppliedJobs(res.data.appliedJobs || []);
+        }
+      } catch (error) {
+        console.error("Error fetching job feed:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchJobs();
+  }, []);
+
 
   // Categories
   const categories = [
-    'Electrical', 'HVAC', 'Plumbing', 'Safety', 
+    'Electrical', 'HVAC', 'Plumbing', 'Safety',
     'Industrial', 'Commercial', 'Residential', 'Data Center'
   ];
 
@@ -209,7 +73,7 @@ const ContractorJobFeed = () => {
   ];
 
   const getStatusColor = (status) => {
-    switch(status) {
+    switch (status) {
       case 'on-track': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
       case 'at-risk': return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'critical': return 'bg-red-100 text-red-800 border-red-200';
@@ -218,7 +82,7 @@ const ContractorJobFeed = () => {
   };
 
   const getStatusIcon = (status) => {
-    switch(status) {
+    switch (status) {
       case 'on-track': return <CheckCircle size={12} />;
       case 'at-risk': return <AlertCircle size={12} />;
       case 'critical': return <ClockAlert size={12} />;
@@ -227,7 +91,7 @@ const ContractorJobFeed = () => {
   };
 
   const getPriorityColor = (priority) => {
-    switch(priority) {
+    switch (priority) {
       case 'HIGH': return 'bg-red-100 text-red-800';
       case 'MEDIUM': return 'bg-amber-100 text-amber-800';
       case 'LOW': return 'bg-blue-100 text-blue-800';
@@ -269,15 +133,15 @@ const ContractorJobFeed = () => {
 
   const handleSubmitApplication = () => {
     if (!selectedJob) return;
-    
+
     // Add to applied jobs
     if (!appliedJobs.includes(selectedJob.id)) {
       setAppliedJobs([...appliedJobs, selectedJob.id]);
     }
-    
-    setShowApplyModal(false);
+
     // In real app, would make API call
     alert(`Application submitted for ${selectedJob.title}!`);
+    navigate('/contractor/jobs?tab=my-applications');
   };
 
   // Filter jobs based on active tab
@@ -297,7 +161,7 @@ const ContractorJobFeed = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/20 font-sans pb-6">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        
+
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Find Work</h1>
@@ -318,12 +182,12 @@ const ContractorJobFeed = () => {
                 className="w-full pl-10 pr-4 py-3 bg-gray-100 border border-transparent rounded-xl focus:bg-white focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100"
               />
             </div>
-            
+
             {/* Sort Options */}
             <div className="flex items-center gap-4">
-              <select 
+              <select
                 value={filters.sortBy}
-                onChange={(e) => setFilters({...filters, sortBy: e.target.value})}
+                onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
                 className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-sm font-medium"
               >
                 <option value="latest">Latest First</option>
@@ -332,7 +196,7 @@ const ContractorJobFeed = () => {
                 <option value="urgent">Urgent First</option>
                 <option value="match">Best Match</option>
               </select>
-              
+
               {/* Filter Toggle */}
               <button
                 onClick={() => setShowFilters(!showFilters)}
@@ -356,16 +220,14 @@ const ContractorJobFeed = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-3 rounded-xl font-medium whitespace-nowrap flex items-center gap-2 ${
-                activeTab === tab.id
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-              }`}
+              className={`px-4 py-3 rounded-xl font-medium whitespace-nowrap flex items-center gap-2 ${activeTab === tab.id
+                ? 'bg-blue-600 text-white'
+                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
             >
               {tab.label}
-              <span className={`px-2 py-0.5 rounded-full text-xs ${
-                activeTab === tab.id ? 'bg-white/20' : 'bg-gray-100'
-              }`}>
+              <span className={`px-2 py-0.5 rounded-full text-xs ${activeTab === tab.id ? 'bg-white/20' : 'bg-gray-100'
+                }`}>
                 {tab.count}
               </span>
             </button>
@@ -379,7 +241,7 @@ const ContractorJobFeed = () => {
               <div className="bg-white border border-gray-300 rounded-xl p-6 sticky top-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="font-bold text-gray-900">Filters</h3>
-                  <button 
+                  <button
                     onClick={() => setFilters({
                       skills: [],
                       location: '',
@@ -405,7 +267,7 @@ const ContractorJobFeed = () => {
                         <input
                           type="checkbox"
                           checked={filters.category === cat}
-                          onChange={(e) => setFilters({...filters, category: e.target.checked ? cat : ''})}
+                          onChange={(e) => setFilters({ ...filters, category: e.target.checked ? cat : '' })}
                           className="rounded border-gray-300 text-blue-600"
                         />
                         <span className="ml-2 text-sm text-gray-700">{cat}</span>
@@ -425,9 +287,9 @@ const ContractorJobFeed = () => {
                           checked={filters.skills.includes(skill)}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              setFilters({...filters, skills: [...filters.skills, skill]});
+                              setFilters({ ...filters, skills: [...filters.skills, skill] });
                             } else {
-                              setFilters({...filters, skills: filters.skills.filter(s => s !== skill)});
+                              setFilters({ ...filters, skills: filters.skills.filter(s => s !== skill) });
                             }
                           }}
                           className="rounded border-gray-300 text-blue-600"
@@ -444,9 +306,9 @@ const ContractorJobFeed = () => {
                 {/* Location */}
                 <div className="mb-6">
                   <h4 className="font-medium text-gray-900 mb-3">Location</h4>
-                  <select 
+                  <select
                     value={filters.location}
-                    onChange={(e) => setFilters({...filters, location: e.target.value})}
+                    onChange={(e) => setFilters({ ...filters, location: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                   >
                     <option value="">All Locations</option>
@@ -466,14 +328,14 @@ const ContractorJobFeed = () => {
                       type="number"
                       placeholder="Min"
                       value={filters.budgetMin}
-                      onChange={(e) => setFilters({...filters, budgetMin: e.target.value})}
+                      onChange={(e) => setFilters({ ...filters, budgetMin: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                     />
                     <input
                       type="number"
                       placeholder="Max"
                       value={filters.budgetMax}
-                      onChange={(e) => setFilters({...filters, budgetMax: e.target.value})}
+                      onChange={(e) => setFilters({ ...filters, budgetMax: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                     />
                   </div>
@@ -490,7 +352,7 @@ const ContractorJobFeed = () => {
                           type="radio"
                           name="urgency"
                           checked={filters.slaUrgency === urgency.toLowerCase()}
-                          onChange={() => setFilters({...filters, slaUrgency: urgency.toLowerCase()})}
+                          onChange={() => setFilters({ ...filters, slaUrgency: urgency.toLowerCase() })}
                           className="text-blue-600"
                         />
                         <span className="ml-2 text-sm text-gray-700">{urgency}</span>
@@ -508,7 +370,7 @@ const ContractorJobFeed = () => {
                         <input
                           type="checkbox"
                           checked={filters.jobType === type.toLowerCase()}
-                          onChange={(e) => setFilters({...filters, jobType: e.target.checked ? type.toLowerCase() : ''})}
+                          onChange={(e) => setFilters({ ...filters, jobType: e.target.checked ? type.toLowerCase() : '' })}
                           className="rounded border-gray-300 text-blue-600"
                         />
                         <span className="ml-2 text-sm text-gray-700">{type}</span>
@@ -549,11 +411,10 @@ const ContractorJobFeed = () => {
             {/* Job Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {filteredJobs.map((job) => (
-                <div 
+                <div
                   key={job.id}
-                  className={`bg-white border border-gray-300 rounded-xl overflow-hidden hover:border-blue-500 transition-all ${
-                    appliedJobs.includes(job.id) ? 'opacity-90' : ''
-                  }`}
+                  className={`bg-white border border-gray-300 rounded-xl overflow-hidden hover:border-blue-500 transition-all ${appliedJobs.includes(job.id) ? 'opacity-90' : ''
+                    }`}
                 >
                   {/* Card Header */}
                   <div className="p-5 border-b border-gray-300">
@@ -580,15 +441,14 @@ const ContractorJobFeed = () => {
                           <span className="text-xs text-gray-500">{job.subCategory}</span>
                         </div>
                       </div>
-                      
+
                       {/* Save Button */}
                       <button
                         onClick={() => handleSaveJob(job.id)}
-                        className={`p-2 rounded-lg ${
-                          savedJobs.includes(job.id)
-                            ? 'text-red-500 hover:bg-red-50'
-                            : 'text-gray-400 hover:bg-gray-100'
-                        }`}
+                        className={`p-2 rounded-lg ${savedJobs.includes(job.id)
+                          ? 'text-red-500 hover:bg-red-50'
+                          : 'text-gray-400 hover:bg-gray-100'
+                          }`}
                       >
                         <Heart size={18} fill={savedJobs.includes(job.id) ? 'currentColor' : 'none'} />
                       </button>
@@ -602,8 +462,8 @@ const ContractorJobFeed = () => {
                       </div>
                       <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${getStatusColor(job.slaStatus)}`}>
                         {getStatusIcon(job.slaStatus)}
-                        {job.slaStatus === 'on-track' ? 'On time' : 
-                         job.slaStatus === 'at-risk' ? 'At risk' : 'Critical'}
+                        {job.slaStatus === 'on-track' ? 'On time' :
+                          job.slaStatus === 'at-risk' ? 'At risk' : 'Critical'}
                       </span>
                     </div>
                   </div>
@@ -619,7 +479,7 @@ const ContractorJobFeed = () => {
                             {job.matchScore}% Match
                           </div>
                           <div className="h-1.5 bg-white/30 rounded-full mt-1 overflow-hidden">
-                            <div 
+                            <div
                               className={`h-full ${getMatchBarColor(job.matchScore)}`}
                               style={{ width: `${job.matchScore}%` }}
                             />
@@ -757,7 +617,7 @@ const ContractorJobFeed = () => {
                   <h3 className="text-xl font-bold text-gray-900">Submit Proposal</h3>
                   <p className="text-gray-600 text-sm mt-1">{selectedJob.title}</p>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowApplyModal(false)}
                   className="p-2 hover:bg-gray-100 rounded-lg"
                 >
@@ -787,7 +647,7 @@ const ContractorJobFeed = () => {
                       Budget: {selectedJob.budget}
                     </div>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-900 mb-2">
                       Breakdown (Optional)
@@ -828,7 +688,7 @@ const ContractorJobFeed = () => {
                       Client timeline: {selectedJob.timeline}
                     </div>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-900 mb-2">
                       Start Date
@@ -858,7 +718,7 @@ const ContractorJobFeed = () => {
                       className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-900 mb-2">
                       Attach Proposal (Optional)
@@ -891,13 +751,13 @@ const ContractorJobFeed = () => {
                 </div>
 
                 <div className="flex justify-end gap-3">
-                  <button 
+                  <button
                     onClick={() => setShowApplyModal(false)}
                     className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium"
                   >
                     Cancel
                   </button>
-                  <button 
+                  <button
                     onClick={handleSubmitApplication}
                     className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium"
                   >
@@ -927,7 +787,7 @@ const ContractorJobFeed = () => {
                     </span>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowJobDetails(false)}
                   className="p-2 hover:bg-gray-100 rounded-lg"
                 >
@@ -986,7 +846,7 @@ const ContractorJobFeed = () => {
                     <h4 className="font-bold text-gray-900 mb-3">Scope of Work</h4>
                     <p className="text-gray-700">{selectedJob.description}</p>
                   </div>
-                  
+
                   <div>
                     <h4 className="font-bold text-gray-900 mb-3">Required Skills</h4>
                     <div className="flex flex-wrap gap-2">
@@ -997,7 +857,7 @@ const ContractorJobFeed = () => {
                       ))}
                     </div>
                   </div>
-                  
+
                   <div>
                     <h4 className="font-bold text-gray-900 mb-3">Timeline</h4>
                     <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
@@ -1010,7 +870,7 @@ const ContractorJobFeed = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Company & Agent Sidebar */}
                 <div className="space-y-6">
                   <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
@@ -1025,7 +885,7 @@ const ContractorJobFeed = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
                     <h4 className="font-bold text-gray-900 mb-3">Agent</h4>
                     <div className="flex items-center gap-3 mb-3">
@@ -1045,7 +905,7 @@ const ContractorJobFeed = () => {
                       Contact Agent
                     </button>
                   </div>
-                  
+
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <h4 className="font-bold text-gray-900 mb-3">Ready to Apply?</h4>
                     {appliedJobs.includes(selectedJob.id) ? (

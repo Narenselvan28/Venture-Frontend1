@@ -1,5 +1,6 @@
 // pages/AgentHome.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from 'react-router-dom';
 import {
   Briefcase,
   FileCheck,
@@ -22,8 +23,10 @@ import {
   MapPin,
   Star,
 } from "lucide-react";
+import api from "../../services/api";
 
 const AgentHome = () => {
+  const navigate = useNavigate();
   const [activeTimeFilter, setActiveTimeFilter] = useState('week');
 
   // Recent jobs/invoices data
@@ -76,25 +79,25 @@ const AgentHome = () => {
 
   // Agent performance data
   const agentPerformance = [
-    { 
-      name: "Morrisey", 
-      score: 9.2, 
+    {
+      name: "Morrisey",
+      score: 9.2,
       role: "Senior Agent",
       completedJobs: 142,
       rating: 4.9,
       trend: "+12%"
     },
-    { 
-      name: "Ferdinand", 
-      score: 7.5, 
+    {
+      name: "Ferdinand",
+      score: 7.5,
       role: "Field Agent",
       completedJobs: 89,
       rating: 4.7,
       trend: "+5%"
     },
-    { 
-      name: "Andrew", 
-      score: 4.8, 
+    {
+      name: "Andrew",
+      score: 4.8,
       role: "Junior Agent",
       completedJobs: 34,
       rating: 4.2,
@@ -104,38 +107,38 @@ const AgentHome = () => {
 
   // Metrics data with improved design
   const metrics = [
-    { 
-      label: "Active Jobs", 
-      value: "28", 
-      icon: <Briefcase size={22} />, 
-      color: "from-blue-500 to-blue-600", 
+    {
+      label: "Active Jobs",
+      value: "28",
+      icon: <Briefcase size={22} />,
+      color: "from-blue-500 to-blue-600",
       bgColor: "bg-gradient-to-br from-blue-50 to-blue-100",
       trend: "+8%",
       description: "Currently ongoing"
     },
-    { 
-      label: "Applications", 
-      value: "45", 
-      icon: <FileCheck size={22} />, 
-      color: "from-green-500 to-emerald-600", 
+    {
+      label: "Applications",
+      value: "45",
+      icon: <FileCheck size={22} />,
+      color: "from-green-500 to-emerald-600",
       bgColor: "bg-gradient-to-br from-green-50 to-emerald-100",
       trend: "+15%",
       description: "Pending review"
     },
-    { 
-      label: "Revenue (MTD)", 
-      value: "$24.8K", 
-      icon: <DollarSign size={22} />, 
-      color: "from-purple-500 to-indigo-600", 
+    {
+      label: "Revenue (MTD)",
+      value: "$24.8K",
+      icon: <DollarSign size={22} />,
+      color: "from-purple-500 to-indigo-600",
       bgColor: "bg-gradient-to-br from-purple-50 to-indigo-100",
       trend: "+4%",
       description: "Monthly target"
     },
-    { 
-      label: "SLA Status", 
-      value: "94%", 
-      icon: <Shield size={22} />, 
-      color: "from-amber-500 to-orange-600", 
+    {
+      label: "SLA Status",
+      value: "94%",
+      icon: <Shield size={22} />,
+      color: "from-amber-500 to-orange-600",
       bgColor: "bg-gradient-to-br from-amber-50 to-orange-100",
       trend: "+2%",
       description: "On-time completion"
@@ -151,7 +154,7 @@ const AgentHome = () => {
   ];
 
   const getStatusColor = (status) => {
-    switch(status) {
+    switch (status) {
       case "completed": return "bg-green-100 text-green-700 border-green-200";
       case "in_progress": return "bg-blue-100 text-blue-700 border-blue-200";
       case "pending": return "bg-yellow-100 text-yellow-700 border-yellow-200";
@@ -160,7 +163,7 @@ const AgentHome = () => {
   };
 
   const getStatusIcon = (status) => {
-    switch(status) {
+    switch (status) {
       case "completed": return <CheckCircle size={14} />;
       case "in_progress": return <Clock size={14} />;
       case "pending": return <AlertTriangle size={14} />;
@@ -169,7 +172,7 @@ const AgentHome = () => {
   };
 
   const getPriorityColor = (priority) => {
-    switch(priority) {
+    switch (priority) {
       case "high": return "bg-red-500";
       case "medium": return "bg-yellow-500";
       case "low": return "bg-green-500";
@@ -199,18 +202,17 @@ const AgentHome = () => {
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Welcome back, Povendran</h1>
             <p className="text-gray-600 mt-1">Here's what's happening with your jobs today</p>
           </div>
-          
+
           <div className="flex items-center space-x-3">
             <div className="flex bg-white border border-gray-200 rounded-xl p-1">
               {timeFilters.map((filter) => (
                 <button
                   key={filter.id}
                   onClick={() => setActiveTimeFilter(filter.id)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    activeTimeFilter === filter.id
-                      ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-100'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTimeFilter === filter.id
+                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-100'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
                 >
                   {filter.label}
                 </button>
@@ -225,8 +227,8 @@ const AgentHome = () => {
         {/* Metrics Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {metrics.map((metric, index) => (
-            <div 
-              key={index} 
+            <div
+              key={index}
               className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="flex items-start justify-between mb-4">
@@ -240,7 +242,7 @@ const AgentHome = () => {
                   <span className="text-xs font-bold text-green-600">{metric.trend}</span>
                 </div>
               </div>
-              
+
               <div>
                 <h3 className="text-2xl font-bold text-gray-900">{metric.value}</h3>
                 <p className="text-sm font-medium text-gray-900 mt-1">{metric.label}</p>
@@ -263,11 +265,14 @@ const AgentHome = () => {
                   </h2>
                   <p className="text-sm text-gray-500 mt-1">Need help? <span className="text-blue-600 font-medium">Create Job</span></p>
                 </div>
-                <button className="text-blue-600 text-sm font-semibold hover:text-blue-700 flex items-center gap-1">
+                <button
+                  onClick={() => navigate('/agent/jobs')}
+                  className="text-blue-600 text-sm font-semibold hover:text-blue-700 flex items-center gap-1"
+                >
                   View all <ChevronRight size={16} />
                 </button>
               </div>
-              
+
               <div className="divide-y divide-gray-100">
                 {recentJobs.map((job) => (
                   <div key={job.id} className="p-5 hover:bg-gray-50/50 transition-colors group">
@@ -284,11 +289,11 @@ const AgentHome = () => {
                             <span className="text-xs text-gray-500">{job.priority} priority</span>
                           </div>
                         </div>
-                        
+
                         <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
                           {job.title}
                         </h3>
-                        
+
                         <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-gray-600">
                           <div className="flex items-center gap-1">
                             <Users size={14} className="text-gray-400" />
@@ -302,13 +307,13 @@ const AgentHome = () => {
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="text-right">
                         <div className="text-xl font-bold text-gray-900">{job.amount}</div>
                         <div className="text-xs text-gray-500 mt-1">{job.time}</div>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                       <div className="flex items-center gap-2">
                         <Calendar size={14} className="text-gray-400" />
@@ -326,7 +331,7 @@ const AgentHome = () => {
                   </div>
                 ))}
               </div>
-              
+
               {/* Stats Summary */}
               <div className="p-5 bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-gray-200">
                 <div className="grid grid-cols-3 gap-4">
@@ -356,7 +361,7 @@ const AgentHome = () => {
               </h2>
               <p className="text-sm text-gray-500 mt-1">Scores out of 10, updated weekly</p>
             </div>
-            
+
             <div className="p-5 space-y-5">
               {agentPerformance.map((agent, index) => (
                 <div key={index} className="p-4 border border-gray-200 rounded-xl hover:border-blue-200 transition-colors">
@@ -376,20 +381,20 @@ const AgentHome = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className={`text-sm font-bold flex items-center gap-1 ${agent.trend.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
                       <ArrowUpRight size={14} />
                       {agent.trend}
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Completed Jobs</span>
                       <span className="font-semibold text-gray-900">{agent.completedJobs}</span>
                     </div>
                     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className={`h-full ${getScoreColor(agent.score)}`}
                         style={{ width: `${(agent.score / 10) * 100}%` }}
                       ></div>
@@ -398,7 +403,7 @@ const AgentHome = () => {
                 </div>
               ))}
             </div>
-            
+
             {/* Performance Legend */}
             <div className="p-5 border-t border-gray-200 bg-gray-50">
               <h4 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
@@ -464,7 +469,10 @@ const AgentHome = () => {
           <div className="bg-white rounded-2xl border border-gray-200 p-5">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
             <div className="grid grid-cols-2 gap-3">
-              <button className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl hover:border-blue-300 transition-colors group">
+              <button
+                onClick={() => navigate('/agent/jobs?create=true')}
+                className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl hover:border-blue-300 transition-colors group"
+              >
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-white rounded-lg border border-blue-100">
                     <Briefcase size={20} className="text-blue-600" />
@@ -472,7 +480,10 @@ const AgentHome = () => {
                   <span className="text-sm font-medium text-gray-900 group-hover:text-blue-600">Create Job</span>
                 </div>
               </button>
-              <button className="p-4 bg-gradient-to-br from-green-50 to-emerald-100 border border-green-200 rounded-xl hover:border-green-300 transition-colors group">
+              <button
+                onClick={() => navigate('/agent/applications')}
+                className="p-4 bg-gradient-to-br from-green-50 to-emerald-100 border border-green-200 rounded-xl hover:border-green-300 transition-colors group"
+              >
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-white rounded-lg border border-green-100">
                     <FileCheck size={20} className="text-green-600" />
@@ -488,7 +499,10 @@ const AgentHome = () => {
                   <span className="text-sm font-medium text-gray-900 group-hover:text-purple-600">Export Report</span>
                 </div>
               </button>
-              <button className="p-4 bg-gradient-to-br from-amber-50 to-orange-100 border border-amber-200 rounded-xl hover:border-amber-300 transition-colors group">
+              <button
+                onClick={() => navigate('/agent/search')}
+                className="p-4 bg-gradient-to-br from-amber-50 to-orange-100 border border-amber-200 rounded-xl hover:border-amber-300 transition-colors group"
+              >
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-white rounded-lg border border-amber-100">
                     <Users size={20} className="text-amber-600" />

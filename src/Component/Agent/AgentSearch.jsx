@@ -1,52 +1,39 @@
-// pages/Search.jsx
-import React, { useState, useEffect } from 'react';
+// pages/AgentSearch.jsx
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Search as SearchIcon,
-  X,
-  MapPin,
-  Star,
-  Clock,
-  Award,
-  Shield,
-  Users,
-  Briefcase,
-  CheckCircle,
-  Calendar,
-  DollarSign,
-  Filter,
-  ChevronRight,
-  Mail,
-  Phone,
-  ExternalLink,
-  Download,
-  FileText,
-  MessageSquare,
-  Zap,
-  Target,
-  TrendingUp,
-  AlertTriangle,
-  Plus,
-  Hash,
-  Percent,
-  Building,
-  Globe,
-  Tag,
-  Check,
-  Sparkles,
+  Search, Filter, MapPin,
+  Star, CheckCircle, X,
+  Loader2, AlertTriangle, Target,
+  Building, MapPin as LocationIcon,
+  Briefcase, Users, Download, MessageSquare, ChevronDown, ChevronUp,
+  FileText, Mail, Phone, ExternalLink, Award, Plus
 } from 'lucide-react';
+import api from '../../services/api';
+import { useDebounce } from '../../hooks/useDebounce';
 
 const AgentSearch = () => {
+  // Search state
   const [searchQuery, setSearchQuery] = useState('');
-  const [recentSearches, setRecentSearches] = useState([
-    'Electrical Chennai',
-    'HVAC Tier-1',
-    'Hospital Maintenance',
-    'Industrial Plumbing',
-    'Data Center Electrical',
-    'Commercial HVAC',
-  ]);
+  const [recentSearches, setRecentSearches] = useState([]);
   const [selectedContractor, setSelectedContractor] = useState(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [bulkSelect, setBulkSelect] = useState([]);
+  const [selectedJob, setSelectedJob] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingJobs, setIsLoadingJobs] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Data state
+  const [contractors, setContractors] = useState([]);
+  const [jobListings, setJobListings] = useState([]);
+  const [stats, setStats] = useState({
+    total: 0,
+    available: 0,
+    verified: 0,
+    highRating: 0,
+  });
+
+  // Filter state
   const [filters, setFilters] = useState({
     skills: [],
     location: '',
@@ -60,217 +47,123 @@ const AgentSearch = () => {
     budgetMin: '',
     budgetMax: '',
   });
-  const [selectedJob, setSelectedJob] = useState('');
-  const [bulkSelect, setBulkSelect] = useState([]);
 
-  // Contractor data
-  const contractors = [
-    {
-      id: 'CTR-001',
-      name: 'Elite Electrical Solutions',
-      contact: 'Alex Mendez',
-      rating: 4.8,
-      reviews: 142,
-      verified: true,
-      specialties: ['Electrical', 'Industrial', 'Safety'],
-      skills: ['Panel Upgrades', 'Wiring', 'Circuit Design', 'Automation'],
-      location: 'Chennai, TN',
-      experience: '12 years',
-      jobsCompleted: 156,
-      slaSuccess: 98,
-      riskLevel: 'Low',
-      availability: 'Available Now',
-      companySize: 'Medium (50-200)',
-      certifications: ['ISO 9001', 'Electrical Safety', 'OSHA'],
-      avgResponse: '2 hours',
-      avgCompletion: '95% on time',
-      minBudget: '₹50,000',
-      maxBudget: '₹25,00,000',
-      performance: [95, 98, 97, 96, 99, 97, 96],
-      pastProjects: [
-        { id: 'PJ-001', name: 'Hospital Electrical Upgrade', rating: 4.9 },
-        { id: 'PJ-002', name: 'Industrial Panel Replacement', rating: 4.7 },
-      ],
-      contactInfo: {
-        email: 'contact@eliteelectricals.com',
-        phone: '+91 9876543210',
-        website: 'www.eliteelectricals.com'
-      }
-    },
-    {
-      id: 'CTR-002',
-      name: 'CoolTech Climate Systems',
-      contact: 'Suresh Kumar',
-      rating: 4.6,
-      reviews: 89,
-      verified: true,
-      specialties: ['HVAC', 'Commercial', 'Energy Efficient'],
-      skills: ['VRF Systems', 'Ducting', 'IoT Monitoring', 'Maintenance'],
-      location: 'Bangalore, KA',
-      experience: '8 years',
-      jobsCompleted: 98,
-      slaSuccess: 95,
-      riskLevel: 'Low',
-      availability: 'Available This Week',
-      companySize: 'Small (10-50)',
-      certifications: ['ASHRAE', 'Energy Star', 'LEED'],
-      avgResponse: '4 hours',
-      avgCompletion: '92% on time',
-      minBudget: '₹1,00,000',
-      maxBudget: '₹15,00,000',
-      performance: [92, 94, 93, 95, 94, 92, 93],
-      pastProjects: [
-        { id: 'PJ-003', name: 'Corporate Office HVAC', rating: 4.8 },
-      ],
-      contactInfo: {
-        email: 'info@cooltechsystems.com',
-        phone: '+91 8765432109',
-        website: 'www.cooltechsystems.com'
-      }
-    },
-    {
-      id: 'CTR-003',
-      name: 'PowerTech Industrial Solutions',
-      contact: 'Rahul Sharma',
-      rating: 4.9,
-      reviews: 214,
-      verified: true,
-      specialties: ['Industrial', 'High Voltage', 'Automation'],
-      skills: ['Transformer', 'Switchgear', 'SCADA', 'PLC'],
-      location: 'Mumbai, MH',
-      experience: '15 years',
-      jobsCompleted: 231,
-      slaSuccess: 99,
-      riskLevel: 'Very Low',
-      availability: 'Available Now',
-      companySize: 'Large (200+)',
-      certifications: ['ISO 14001', 'ISO 45001', 'NEC'],
-      avgResponse: '1 hour',
-      avgCompletion: '98% on time',
-      minBudget: '₹2,00,000',
-      maxBudget: '₹50,00,000',
-      performance: [97, 98, 99, 98, 99, 98, 97],
-      pastProjects: [
-        { id: 'PJ-004', name: 'Factory Automation', rating: 4.9 },
-        { id: 'PJ-005', name: 'Data Center Power', rating: 5.0 },
-      ],
-      contactInfo: {
-        email: 'sales@powertech.com',
-        phone: '+91 7654321098',
-        website: 'www.powertech-industry.com'
-      }
-    },
-    {
-      id: 'CTR-004',
-      name: 'SafeWires Electrical',
-      contact: 'Karthik Venkat',
-      rating: 4.3,
-      reviews: 56,
-      verified: true,
-      specialties: ['Residential', 'Commercial', 'Safety'],
-      skills: ['Wiring', 'Lighting', 'Solar', 'Backup Systems'],
-      location: 'Chennai, TN',
-      experience: '6 years',
-      jobsCompleted: 78,
-      slaSuccess: 88,
-      riskLevel: 'Medium',
-      availability: 'Available Now',
-      companySize: 'Small (10-50)',
-      certifications: ['Electrical Safety'],
-      avgResponse: '6 hours',
-      avgCompletion: '85% on time',
-      minBudget: '₹25,000',
-      maxBudget: '₹10,00,000',
-      performance: [85, 87, 86, 88, 85, 86, 87],
-      pastProjects: [
-        { id: 'PJ-006', name: 'Apartment Complex Wiring', rating: 4.2 },
-      ],
-      contactInfo: {
-        email: 'karthik@safewires.com',
-        phone: '+91 6543210987',
-        website: 'www.safewires.com'
-      }
-    },
-  ];
+  // UI state
+  const [showFilters, setShowFilters] = useState(false);
+  const [sortBy, setSortBy] = useState('best_match');
+  const [inviteMessage, setInviteMessage] = useState('');
+  const [responseDeadline, setResponseDeadline] = useState('48');
+  // Add this function to your AgentSearch component
 
-  // Job listings for invite modal
-  const jobListings = [
-    {
-      id: 'JOB-0428',
-      title: 'Electrical Panel Upgrade - Hospital',
-      location: 'Chennai, TN',
-      priority: 'HIGH',
-      budget: '₹2,50,000',
-      slaRemaining: '48h',
-      status: 'Unassigned',
-      category: 'Electrical',
-      posted: '2 days ago'
-    },
-    {
-      id: 'JOB-0429',
-      title: 'HVAC System Installation - Corporate',
-      location: 'Bangalore, KA',
-      priority: 'MEDIUM',
-      budget: '₹4,80,000',
-      slaRemaining: '72h',
-      status: 'Open',
-      category: 'HVAC',
-      posted: '1 day ago'
-    },
-    {
-      id: 'JOB-0430',
-      title: 'Data Center Power Backup',
-      location: 'Mumbai, MH',
-      priority: 'HIGH',
-      budget: '₹15,00,000',
-      slaRemaining: '120h',
-      status: 'Draft',
-      category: 'Industrial',
-      posted: '3 days ago'
-    },
-    {
-      id: 'JOB-0431',
-      title: 'Commercial Building Lighting',
-      location: 'Chennai, TN',
-      priority: 'LOW',
-      budget: '₹1,20,000',
-      slaRemaining: '96h',
-      status: 'Unassigned',
-      category: 'Electrical',
-      posted: '5 days ago'
-    },
-  ];
 
-  // Skill categories for quick search
+  // OR if you want to keep the original functionality, add this function before the return statement
+  // Skill categories
   const skillCategories = [
-    'Electrical', 'HVAC', 'Plumbing', 'Data Center', 
-    'Hospital', 'High Voltage', 'Industrial', 'Commercial',
-    'Residential', 'Fire Safety', 'Automation', 'Solar'
+    { id: 'electrical', label: 'Electrical' },
+    { id: 'hvac', label: 'HVAC' },
+    { id: 'plumbing', label: 'Plumbing' },
+    { id: 'data_center', label: 'Data Center' },
+    { id: 'hospital', label: 'Hospital' },
+    { id: 'industrial', label: 'Industrial' },
+    { id: 'commercial', label: 'Commercial' },
+    { id: 'residential', label: 'Residential' },
+    { id: 'fire_safety', label: 'Fire Safety' },
+    { id: 'automation', label: 'Automation' },
+    { id: 'solar', label: 'Solar' },
+    { id: 'maintenance', label: 'Maintenance' },
   ];
 
-  // Initial empty state
-  const isEmptyState = !searchQuery && recentSearches.length === 0;
+  // Debounced search
+  const debouncedSearch = useDebounce(searchQuery, 500);
 
-  const handleSearch = (query) => {
-    if (query.trim()) {
-      setSearchQuery(query);
-      if (!recentSearches.includes(query)) {
-        setRecentSearches([query, ...recentSearches.slice(0, 5)]);
+  // Fetch contractors
+  const fetchContractors = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const params = {
+        q: debouncedSearch || undefined,
+        ...filters,
+        sortBy,
+        page: 1,
+        limit: 20,
+      };
+
+      // Remove empty filters
+      Object.keys(params).forEach(key => {
+        if (params[key] === '' || (Array.isArray(params[key]) && params[key].length === 0)) {
+          delete params[key];
+        }
+      });
+
+      const response = await api.get('/contractors/search', { params });
+      const { contractors: fetchedContractors, stats: fetchedStats } = response.data;
+
+      setContractors(fetchedContractors);
+      setStats(fetchedStats);
+
+      // Store recent search
+      if (debouncedSearch && !recentSearches.includes(debouncedSearch)) {
+        const newRecentSearches = [debouncedSearch, ...recentSearches.slice(0, 4)];
+        setRecentSearches(newRecentSearches);
+        localStorage.setItem('recentSearches', JSON.stringify(newRecentSearches));
       }
+    } catch (err) {
+      console.error('Error fetching contractors:', err);
+      setError('Failed to load contractors. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
+  }, [debouncedSearch, filters, sortBy]);
+
+  // Fetch jobs for invitation
+  const fetchJobs = useCallback(async () => {
+    try {
+      setIsLoadingJobs(true);
+      const response = await api.get('/agent/jobs/open');
+      setJobListings(response.data.jobs || []);
+    } catch (err) {
+      console.error('Error fetching jobs:', err);
+    } finally {
+      setIsLoadingJobs(false);
+    }
+  }, []);
+
+  // Load recent searches from localStorage
+  useEffect(() => {
+    const savedSearches = localStorage.getItem('recentSearches');
+    if (savedSearches) {
+      setRecentSearches(JSON.parse(savedSearches));
+    }
+  }, []);
+
+  // Fetch contractors when filters or search changes
+  useEffect(() => {
+    fetchContractors();
+  }, [fetchContractors]);
+
+  // Fetch jobs when modal opens
+  useEffect(() => {
+    if (showInviteModal) {
+      fetchJobs();
+    }
+  }, [showInviteModal, fetchJobs]);
+
+  // Handlers
+  const handleSearch = (query) => {
+    setSearchQuery(query);
   };
 
-  const removeRecentSearch = (index) => {
-    setRecentSearches(recentSearches.filter((_, i) => i !== index));
+  const handleRemoveRecentSearch = (index) => {
+    const newRecentSearches = recentSearches.filter((_, i) => i !== index);
+    setRecentSearches(newRecentSearches);
+    localStorage.setItem('recentSearches', JSON.stringify(newRecentSearches));
   };
 
-  const clearAllSearches = () => {
+  const handleClearSearches = () => {
     setRecentSearches([]);
-  };
-
-  const handleInvite = (contractor) => {
-    setSelectedContractor(contractor);
-    setShowInviteModal(true);
+    localStorage.removeItem('recentSearches');
   };
 
   const handleBulkToggle = (id) => {
@@ -281,151 +174,498 @@ const AgentSearch = () => {
     }
   };
 
+  const handleInvite = (contractor) => {
+    setSelectedContractor(contractor);
+    setShowInviteModal(true);
+  };
+
   const handleBulkInvite = () => {
     if (bulkSelect.length > 0) {
       setShowInviteModal(true);
     }
   };
 
-  const getRiskColor = (risk) => {
-    switch(risk) {
-      case 'Very Low': return 'bg-emerald-100 text-emerald-800';
-      case 'Low': return 'bg-green-100 text-green-800';
-      case 'Medium': return 'bg-yellow-100 text-yellow-800';
-      case 'High': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const handleSendInvitation = async () => {
+    if (!selectedJob) {
+      alert('Please select a job');
+      return;
+    }
+
+    try {
+      const contractorIds = selectedContractor ? [selectedContractor._id] : bulkSelect;
+
+      const invitationData = {
+        jobId: selectedJob,
+        contractorIds,
+        message: inviteMessage,
+        responseDeadline: `${responseDeadline}h`,
+        allowNegotiation: true,
+        priority: false,
+        requestWorkPlan: true,
+      };
+
+      await api.post('/invitations/send', invitationData);
+
+      alert(`Invitation sent to ${contractorIds.length} contractor(s)!`);
+      setShowInviteModal(false);
+      setInviteMessage('');
+      setBulkSelect([]);
+    } catch (err) {
+      console.error('Error sending invitation:', err);
+      alert('Failed to send invitation. Please try again.');
     }
   };
 
-  const getAvailabilityColor = (status) => {
-    if (status.includes('Now')) return 'text-emerald-600';
-    if (status.includes('Week')) return 'text-blue-600';
-    return 'text-gray-600';
+  const handleDownloadList = async () => {
+    try {
+      const selectedContractorsData = contractors.filter(c => bulkSelect.includes(c._id));
+
+      // Create CSV content
+      const headers = ['Name', 'Contact', 'Rating', 'Skills', 'Location', 'Experience', 'Jobs Completed', 'SLA %'];
+      const csvContent = [
+        headers.join(','),
+        ...selectedContractorsData.map(contractor => [
+          contractor.name,
+          contractor.contactInfo?.email || '',
+          contractor.rating,
+          contractor.skills.slice(0, 3).join(';'),
+          contractor.location,
+          contractor.experience,
+          contractor.jobsCompleted,
+          contractor.slaSuccess
+        ].join(','))
+      ].join('\n');
+
+      // Create and trigger download
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `contractors-list-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error downloading list:', err);
+    }
   };
 
-  const getAvailabilityDot = (status) => {
-    if (status.includes('Now')) return 'bg-emerald-500';
-    if (status.includes('Week')) return 'bg-blue-500';
-    return 'bg-gray-500';
+  // UI helpers
+  const getRiskColor = (risk) => {
+    switch (risk) {
+      case 'VERY_LOW':
+      case 'Very Low':
+        return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      case 'LOW':
+      case 'Low':
+        return 'bg-green-100 text-green-700 border-green-200';
+      case 'MEDIUM':
+      case 'Medium':
+        return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+      case 'HIGH':
+      case 'High':
+        return 'bg-red-100 text-red-700 border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-700 border-gray-200';
+    }
+  };
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'CRITICAL':
+      case 'Critical':
+        return 'bg-purple-100 text-purple-700';
+      case 'HIGH':
+      case 'High':
+        return 'bg-red-100 text-red-700';
+      case 'MEDIUM':
+      case 'Medium':
+        return 'bg-yellow-100 text-yellow-700';
+      case 'LOW':
+      case 'Low':
+        return 'bg-green-100 text-green-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans">
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Contractor Search</h1>
-          <p className="text-gray-600">Search and connect with qualified contractors for your projects</p>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Contractor Search</h1>
+              <p className="text-gray-600 mt-1">Find and connect with vetted contractors for your projects</p>
+            </div>
 
-        {/* Search Bar with Recent Searches */}
-        <div className="mb-8">
-          <div className="relative mb-4">
-            <SearchIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder="Search by company, skill, location, certification, rating..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch(searchQuery)}
-              className="w-full pl-12 pr-4 py-3 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-            />
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <X size={18} />
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {bulkSelect.length > 0 && (
+                <>
+                  <button
+                    onClick={handleDownloadList}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 font-medium"
+                  >
+                    <Download size={16} />
+                    Export ({bulkSelect.length})
+                  </button>
+                  <button
+                    onClick={handleBulkInvite}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                  >
+                    <MessageSquare size={16} />
+                    Invite Selected
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Main Search */}
+          <div className="mt-6">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                placeholder="Search by company name, skill, location, or certification..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={18} />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Recent Searches */}
           {recentSearches.length > 0 && (
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-sm text-gray-600">Recent searches:</div>
-              <button 
-                onClick={clearAllSearches}
-                className="text-sm text-blue-600 hover:text-blue-700"
-              >
-                Clear all
-              </button>
-            </div>
-          )}
-
-          <div className="flex flex-wrap gap-2 mb-6">
-            {recentSearches.map((search, index) => (
-              <div 
-                key={index}
-                className="flex items-center gap-1 bg-gray-100 border border-gray-300 rounded-full px-3 py-1.5 hover:bg-gray-200 cursor-pointer"
-                onClick={() => handleSearch(search)}
-              >
-                <span className="text-sm text-gray-700">{search}</span>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeRecentSearch(index);
-                  }}
-                  className="ml-1 text-gray-400 hover:text-gray-600"
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm text-gray-600">Recent searches</div>
+                <button
+                  onClick={handleClearSearches}
+                  className="text-sm text-blue-600 hover:text-blue-700"
                 >
-                  <X size={14} />
+                  Clear all
                 </button>
               </div>
-            ))}
-          </div>
-
-          {/* Quick Search Chips */}
-          <div className="mb-8">
-            <div className="text-sm text-gray-600 mb-3">Quick search by skill:</div>
-            <div className="flex flex-wrap gap-2">
-              {skillCategories.map((skill, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleSearch(skill)}
-                  className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg hover:border-blue-500 hover:text-blue-600 text-sm font-medium"
-                >
-                  {skill}
-                </button>
-              ))}
+              <div className="flex flex-wrap gap-2">
+                {recentSearches.map((search, index) => (
+                  <div
+                    key={index}
+                    className="inline-flex items-center gap-1 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-full px-3 py-1.5 cursor-pointer transition-colors"
+                    onClick={() => handleSearch(search)}
+                  >
+                    <span className="text-sm text-gray-700">{search}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveRecentSearch(index);
+                      }}
+                      className="ml-1 text-gray-400 hover:text-gray-600"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
+      </div>
 
-        {/* Empty State */}
-        {isEmptyState && (
-          <div className="flex flex-col items-center justify-center py-16">
-            <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
-              <SearchIcon size={32} className="text-gray-400" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Search for Contractors</h3>
-            <p className="text-gray-600 text-center max-w-md mb-6">
-              Search for contractors by skill, location, or specialization to find the best match for your project.
-            </p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {skillCategories.slice(0, 6).map((skill, index) => (
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Filters Sidebar */}
+          <div className={`lg:w-64 ${showFilters ? 'block' : 'hidden lg:block'}`}>
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 sticky top-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-bold text-gray-900">Filters</h3>
                 <button
-                  key={index}
-                  onClick={() => handleSearch(skill)}
-                  className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:border-blue-500 hover:text-blue-600 font-medium"
+                  onClick={() => setFilters({
+                    skills: [],
+                    location: '',
+                    rating: '',
+                    slaScore: '',
+                    minJobs: '',
+                    riskLevel: '',
+                    availability: '',
+                    companySize: '',
+                    certifications: [],
+                    budgetMin: '',
+                    budgetMax: '',
+                  })}
+                  className="text-sm text-blue-600 hover:text-blue-700"
                 >
-                  {skill}
+                  Reset all
                 </button>
-              ))}
+              </div>
+
+              {/* Skills Filter */}
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-gray-900 mb-3">Skills & Categories</h4>
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+                  {skillCategories.map((skill) => (
+                    <label key={skill.id} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={filters.skills.includes(skill.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFilters({ ...filters, skills: [...filters.skills, skill.id] });
+                          } else {
+                            setFilters({ ...filters, skills: filters.skills.filter(s => s !== skill.id) });
+                          }
+                        }}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">{skill.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Location Filter */}
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-gray-900 mb-3">Location</h4>
+                <select
+                  value={filters.location}
+                  onChange={(e) => setFilters({ ...filters, location: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 text-sm"
+                >
+                  <option value="">All Locations</option>
+                  <option value="chennai">Chennai</option>
+                  <option value="bangalore">Bangalore</option>
+                  <option value="mumbai">Mumbai</option>
+                  <option value="delhi">Delhi</option>
+                  <option value="hyderabad">Hyderabad</option>
+                </select>
+              </div>
+
+              {/* Rating Filter */}
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-gray-900 mb-3">Minimum Rating</h4>
+                <div className="space-y-2">
+                  {[
+                    { value: '4.5', label: '4.5+ stars' },
+                    { value: '4.0', label: '4.0+ stars' },
+                    { value: '3.5', label: '3.5+ stars' },
+                    { value: '', label: 'Any rating' }
+                  ].map((option) => (
+                    <label key={option.value} className="flex items-center">
+                      <input
+                        type="radio"
+                        name="rating"
+                        value={option.value}
+                        checked={filters.rating === option.value}
+                        onChange={(e) => setFilters({ ...filters, rating: e.target.value })}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">{option.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Availability Filter */}
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-gray-900 mb-3">Availability</h4>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={filters.availability.includes('immediate')}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFilters({ ...filters, availability: [...filters.availability, 'immediate'] });
+                        } else {
+                          setFilters({ ...filters, availability: filters.availability.filter(a => a !== 'immediate') });
+                        }
+                      }}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Available Now</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={filters.availability.includes('week')}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFilters({ ...filters, availability: [...filters.availability, 'week'] });
+                        } else {
+                          setFilters({ ...filters, availability: filters.availability.filter(a => a !== 'week') });
+                        }
+                      }}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Available This Week</span>
+                  </label>
+                </div>
+              </div>
+
+              <button
+                onClick={fetchContractors}
+                className="w-full py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+              >
+                Apply Filters
+              </button>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="mt-4 bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+              <h4 className="font-medium text-gray-900 mb-3">Search Stats</h4>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Total Found</span>
+                  <span className="text-sm font-bold text-gray-900">{stats.total}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Available Now</span>
+                  <span className="text-sm font-bold text-green-600">{stats.available}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Verified</span>
+                  <span className="text-sm font-bold text-blue-600">{stats.verified}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">4.5+ Rating</span>
+                  <span className="text-sm font-bold text-amber-600">{stats.highRating}</span>
+                </div>
+              </div>
             </div>
           </div>
-        )}
 
-        {/* Main Content Area */}
-        {!isEmptyState && (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Left Panel - Filters */}
-            <div className="lg:col-span-1">
-              <div className="bg-white border border-gray-300 rounded-lg p-4 sticky top-24">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-gray-900">Filters</h3>
-                  <button 
-                    onClick={() => setFilters({
+          {/* Main Content */}
+          <div className="flex-1">
+            {/* Mobile Filter Toggle */}
+            <div className="lg:hidden mb-4">
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="w-full py-2 bg-white border border-gray-300 rounded-lg flex items-center justify-center gap-2 text-gray-700 font-medium"
+              >
+                <Filter size={16} />
+                {showFilters ? 'Hide Filters' : 'Show Filters'}
+                {showFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+            </div>
+
+            {/* Results Header */}
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h2 className="font-bold text-gray-900">Contractors</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {isLoading ? 'Loading...' : `${contractors.length} contractors found`}
+                    {searchQuery && ` for "${searchQuery}"`}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="text-sm text-gray-600">Sort by:</div>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  >
+                    <option value="best_match">Best Match</option>
+                    <option value="rating_desc">Highest Rating</option>
+                    <option value="rating_asc">Lowest Rating</option>
+                    <option value="experience_desc">Most Experience</option>
+                    <option value="jobs_desc">Most Jobs</option>
+                    <option value="sla_desc">Highest SLA</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Quick Skill Filters */}
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <div className="text-sm text-gray-600 mb-2">Quick filters:</div>
+                <div className="flex flex-wrap gap-2">
+                  {skillCategories.slice(0, 6).map((skill) => (
+                    <button
+                      key={skill.id}
+                      onClick={() => {
+                        if (filters.skills.includes(skill.id)) {
+                          setFilters({ ...filters, skills: filters.skills.filter(s => s !== skill.id) });
+                        } else {
+                          setFilters({ ...filters, skills: [...filters.skills, skill.id] });
+                        }
+                      }}
+                      className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${filters.skills.includes(skill.id)
+                        ? 'bg-blue-50 border-blue-200 text-blue-700'
+                        : 'bg-white border-gray-300 text-gray-700 hover:border-blue-300'
+                        }`}
+                    >
+                      {skill.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Loading State */}
+            {isLoading && (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="animate-spin text-blue-600" size={32} />
+              </div>
+            )}
+
+            {/* Error State */}
+            {error && !isLoading && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                <AlertTriangle className="mx-auto text-red-500 mb-3" size={32} />
+                <h3 className="font-medium text-gray-900 mb-2">Error Loading Contractors</h3>
+                <p className="text-gray-600 mb-4">{error}</p>
+                <button
+                  onClick={fetchContractors}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                >
+                  Try Again
+                </button>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!isLoading && !error && contractors.length === 0 && (
+              <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-8 text-center">
+                <Target className="mx-auto text-gray-400 mb-4" size={48} />
+                <h3 className="text-lg font-bold text-gray-900 mb-2">No contractors found</h3>
+                <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                  {searchQuery
+                    ? `No results found for "${searchQuery}". Try adjusting your search or filters.`
+                    : 'Try searching for specific skills or adjusting your filters to find contractors.'
+                  }
+                </p>
+                <button
+                  onClick={() => {
+                    setFilters({
                       skills: [],
                       location: '',
                       rating: '',
@@ -437,476 +677,343 @@ const AgentSearch = () => {
                       certifications: [],
                       budgetMin: '',
                       budgetMax: '',
-                    })}
-                    className="text-sm text-blue-600 hover:text-blue-700"
-                  >
-                    Reset all
-                  </button>
-                </div>
-
-                {/* Skills Filter */}
-                <div className="mb-4">
-                  <div className="text-sm font-medium text-gray-900 mb-2">Skills / Categories</div>
-                  <div className="space-y-2">
-                    {['Electrical', 'HVAC', 'Plumbing', 'Industrial', 'Commercial', 'Residential'].map((skill) => (
-                      <label key={skill} className="flex items-center">
-                        <input 
-                          type="checkbox" 
-                          className="rounded border-gray-300 text-blue-600"
-                          checked={filters.skills.includes(skill)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setFilters({...filters, skills: [...filters.skills, skill]});
-                            } else {
-                              setFilters({...filters, skills: filters.skills.filter(s => s !== skill)});
-                            }
-                          }}
-                        />
-                        <span className="ml-2 text-sm text-gray-700">{skill}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Location Filter */}
-                <div className="mb-4">
-                  <div className="text-sm font-medium text-gray-900 mb-2">Location</div>
-                  <select 
-                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
-                    value={filters.location}
-                    onChange={(e) => setFilters({...filters, location: e.target.value})}
-                  >
-                    <option value="">Any Location</option>
-                    <option value="Chennai">Chennai</option>
-                    <option value="Bangalore">Bangalore</option>
-                    <option value="Mumbai">Mumbai</option>
-                    <option value="Delhi">Delhi</option>
-                    <option value="Hyderabad">Hyderabad</option>
-                  </select>
-                </div>
-
-                {/* Rating Filter */}
-                <div className="mb-4">
-                  <div className="text-sm font-medium text-gray-900 mb-2">Minimum Rating</div>
-                  <div className="space-y-2">
-                    {['4.5+', '4.0+', '3.5+', 'Any'].map((rating) => (
-                      <label key={rating} className="flex items-center">
-                        <input 
-                          type="radio" 
-                          name="rating"
-                          className="text-blue-600"
-                          checked={filters.rating === rating}
-                          onChange={() => setFilters({...filters, rating})}
-                        />
-                        <span className="ml-2 text-sm text-gray-700">{rating}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* SLA Score Filter */}
-                <div className="mb-4">
-                  <div className="text-sm font-medium text-gray-900 mb-2">SLA Success</div>
-                  <select 
-                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
-                    value={filters.slaScore}
-                    onChange={(e) => setFilters({...filters, slaScore: e.target.value})}
-                  >
-                    <option value="">Any Score</option>
-                    <option value="95">95%+</option>
-                    <option value="90">90%+</option>
-                    <option value="85">85%+</option>
-                    <option value="80">80%+</option>
-                  </select>
-                </div>
-
-                {/* Risk Level Filter */}
-                <div className="mb-4">
-                  <div className="text-sm font-medium text-gray-900 mb-2">Risk Level</div>
-                  <div className="space-y-2">
-                    {['Very Low', 'Low', 'Medium', 'Any'].map((risk) => (
-                      <label key={risk} className="flex items-center">
-                        <input 
-                          type="radio" 
-                          name="risk"
-                          className="text-blue-600"
-                          checked={filters.riskLevel === risk}
-                          onChange={() => setFilters({...filters, riskLevel: risk})}
-                        />
-                        <span className="ml-2 text-sm text-gray-700">{risk}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Availability Filter */}
-                <div className="mb-4">
-                  <div className="text-sm font-medium text-gray-900 mb-2">Availability</div>
-                  <div className="space-y-2">
-                    <label className="flex items-center">
-                      <input 
-                        type="checkbox" 
-                        className="rounded border-gray-300 text-blue-600"
-                        checked={filters.availability === 'now'}
-                        onChange={(e) => setFilters({...filters, availability: e.target.checked ? 'now' : ''})}
-                      />
-                      <span className="ml-2 text-sm text-gray-700">Available Now</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input 
-                        type="checkbox" 
-                        className="rounded border-gray-300 text-blue-600"
-                        checked={filters.availability === 'week'}
-                        onChange={(e) => setFilters({...filters, availability: e.target.checked ? 'week' : ''})}
-                      />
-                      <span className="ml-2 text-sm text-gray-700">Available This Week</span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Company Size Filter */}
-                <div className="mb-4">
-                  <div className="text-sm font-medium text-gray-900 mb-2">Company Size</div>
-                  <select 
-                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
-                    value={filters.companySize}
-                    onChange={(e) => setFilters({...filters, companySize: e.target.value})}
-                  >
-                    <option value="">Any Size</option>
-                    <option value="small">Small (1-50)</option>
-                    <option value="medium">Medium (50-200)</option>
-                    <option value="large">Large (200+)</option>
-                  </select>
-                </div>
-
-                <button className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
-                  Apply Filters
+                    });
+                    setSearchQuery('');
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                >
+                  Clear All Filters
                 </button>
               </div>
+            )}
 
-              {/* Smart Recommendations */}
-              <div className="mt-4 bg-white border border-gray-300 rounded-lg p-4">
-                <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                  <Sparkles size={16} className="text-blue-500" />
-                  Smart Features
-                </h3>
-                <div className="space-y-3">
-                  <button className="w-full text-left p-2 hover:bg-gray-50 rounded text-sm text-gray-700">
-                    "Similar to JOB-0428"
-                  </button>
-                  <button className="w-full text-left p-2 hover:bg-gray-50 rounded text-sm text-gray-700">
-                    "High SLA reliability"
-                  </button>
-                  <button className="w-full text-left p-2 hover:bg-gray-50 rounded text-sm text-gray-700">
-                    "System shortlist"
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Center Panel - Results */}
-            <div className="lg:col-span-2">
-              {/* Results Header */}
-              <div className="bg-white border border-gray-300 rounded-lg p-4 mb-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-gray-600">
-                      {contractors.length} contractors found
-                      {searchQuery && ` for "${searchQuery}"`}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      Showing best matches first
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-4">
-                    <div className="text-sm text-gray-600">Sort by:</div>
-                    <select className="border-none bg-transparent text-sm font-medium focus:outline-none">
-                      <option>Best Match</option>
-                      <option>Highest Rating</option>
-                      <option>Lowest Risk</option>
-                      <option>Most Available</option>
-                      <option>Nearest Location</option>
-                      <option>Most Completed Jobs</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bulk Actions */}
-              {bulkSelect.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle size={18} className="text-blue-600" />
-                      <span className="font-medium text-blue-700">{bulkSelect.length} contractors selected</span>
-                    </div>
-                    <button 
-                      onClick={handleBulkInvite}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
-                    >
-                      Invite Selected to Job
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Contractor Results */}
+            {/* Contractors List */}
+            {!isLoading && !error && contractors.length > 0 && (
               <div className="space-y-4">
                 {contractors.map((contractor) => (
-                  <div 
-                    key={contractor.id}
-                    className={`bg-white border border-gray-300 rounded-lg p-4 hover:border-blue-500 transition-colors ${bulkSelect.includes(contractor.id) ? 'border-blue-500 bg-blue-50' : ''}`}
-                    onClick={() => setSelectedContractor(contractor)}
+                  <div
+                    key={contractor._id}
+                    className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow ${bulkSelect.includes(contractor._id)
+                      ? 'border-blue-500 border-2'
+                      : 'border-gray-200'
+                      }`}
                   >
-                    <div className="flex items-start justify-between">
-                      {/* Left Section */}
-                      <div className="flex items-start gap-4 flex-1">
-                        {/* Checkbox for bulk selection */}
-                        <input 
-                          type="checkbox"
-                          className="mt-1"
-                          checked={bulkSelect.includes(contractor.id)}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            handleBulkToggle(contractor.id);
-                          }}
-                        />
-                        
-                        {/* Logo/Avatar */}
-                        <div className="w-12 h-12 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center">
-                          <Building size={24} className="text-blue-600" />
+                    <div className="p-6">
+                      <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                        {/* Selection Checkbox */}
+                        <div className="flex items-start">
+                          <input
+                            type="checkbox"
+                            checked={bulkSelect.includes(contractor._id)}
+                            onChange={() => handleBulkToggle(contractor._id)}
+                            className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1"
+                          />
                         </div>
 
-                        {/* Details */}
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-bold text-gray-900">{contractor.name}</h3>
-                            {contractor.verified && (
-                              <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-xs font-bold rounded">
-                                VERIFIED
-                              </span>
-                            )}
-                          </div>
-                          
-                          <div className="flex items-center gap-4 mb-2">
-                            <div className="flex items-center gap-1">
-                              <Star size={14} className="text-amber-500 fill-amber-500" />
-                              <span className="text-sm font-bold">{contractor.rating}</span>
-                              <span className="text-xs text-gray-500">({contractor.reviews})</span>
+                        {/* Avatar/Logo */}
+                        <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                          {contractor.logo ? (
+                            <img
+                              src={contractor.logo}
+                              alt={contractor.name}
+                              className="w-10 h-10 object-contain"
+                            />
+                          ) : (
+                            <Building size={28} className="text-blue-600" />
+                          )}
+                        </div>
+
+                        {/* Main Content */}
+                        <div className="flex-1 min-w-0">
+                          {/* Header */}
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-4">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-bold text-gray-900 text-lg">{contractor.name}</h3>
+                                {contractor.verified && (
+                                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full">
+                                    VERIFIED
+                                  </span>
+                                )}
+                                {contractor.premium && (
+                                  <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-xs font-bold rounded-full flex items-center gap-1">
+                                    <Star size={10} />
+                                    PREMIUM
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                                <div className="flex items-center gap-1">
+                                  <MapPin size={14} />
+                                  <span>{contractor.location}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Briefcase size={14} />
+                                  <span>{contractor.experience}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Users size={14} />
+                                  <span>{contractor.companySize}</span>
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <MapPin size={14} className="text-gray-400" />
-                              <span className="text-sm text-gray-700">{contractor.location}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Briefcase size={14} className="text-gray-400" />
-                              <span className="text-sm text-gray-700">{contractor.experience}</span>
+
+                            <div className="flex flex-col items-end gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${getRiskColor(contractor.riskLevel)}`}>
+                                  {contractor.riskLevel} Risk
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <div className="flex items-center">
+                                  <Star size={14} className="text-amber-500 fill-amber-500" />
+                                  <span className="font-bold text-gray-900 ml-1">{contractor.rating}</span>
+                                  <span className="text-xs text-gray-500 ml-1">({contractor.reviews})</span>
+                                </div>
+                              </div>
                             </div>
                           </div>
 
-                          {/* Specializations */}
-                          <div className="flex flex-wrap gap-1 mb-3">
-                            {contractor.specialties.map((spec, idx) => (
-                              <span key={idx} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
-                                {spec}
-                              </span>
-                            ))}
+                          {/* Skills */}
+                          <div className="mb-4">
+                            <div className="flex flex-wrap gap-1.5">
+                              {contractor.skills.slice(0, 5).map((skill, index) => (
+                                <span
+                                  key={index}
+                                  className="px-2.5 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full"
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                              {contractor.skills.length > 5 && (
+                                <span className="px-2.5 py-1 bg-gray-100 text-gray-500 text-xs font-medium rounded-full">
+                                  +{contractor.skills.length - 5} more
+                                </span>
+                              )}
+                            </div>
                           </div>
 
                           {/* Stats */}
-                          <div className="grid grid-cols-3 gap-4">
-                            <div>
-                              <div className="text-xs text-gray-500">Jobs Done</div>
-                              <div className="text-sm font-bold text-gray-900">{contractor.jobsCompleted}</div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            <div className="bg-gray-50 rounded-lg p-3">
+                              <div className="text-xs text-gray-500 mb-1">Jobs Completed</div>
+                              <div className="text-lg font-bold text-gray-900">{contractor.jobsCompleted}</div>
                             </div>
-                            <div>
-                              <div className="text-xs text-gray-500">SLA Success</div>
-                              <div className="text-sm font-bold text-emerald-600">{contractor.slaSuccess}%</div>
+                            <div className="bg-gray-50 rounded-lg p-3">
+                              <div className="text-xs text-gray-500 mb-1">SLA Success</div>
+                              <div className="text-lg font-bold text-emerald-600">{contractor.slaSuccess}%</div>
                             </div>
-                            <div>
-                              <div className="text-xs text-gray-500">Response Time</div>
-                              <div className="text-sm font-bold text-gray-900">{contractor.avgResponse}</div>
+                            <div className="bg-gray-50 rounded-lg p-3">
+                              <div className="text-xs text-gray-500 mb-1">Response Time</div>
+                              <div className="text-lg font-bold text-gray-900">{contractor.avgResponse}</div>
+                            </div>
+                            <div className="bg-gray-50 rounded-lg p-3">
+                              <div className="text-xs text-gray-500 mb-1">Budget Range</div>
+                              <div className="text-sm font-bold text-gray-900">
+                                {formatCurrency(contractor.minBudget)} - {formatCurrency(contractor.maxBudget)}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </div>
 
-                      {/* Right Section */}
-                      <div className="flex flex-col items-end gap-2">
-                        {/* Availability & Risk */}
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${getAvailabilityDot(contractor.availability)}`}></div>
-                          <span className={`text-xs font-medium ${getAvailabilityColor(contractor.availability)}`}>
-                            {contractor.availability}
-                          </span>
-                        </div>
-                        
-                        <span className={`px-2 py-1 rounded text-xs font-bold ${getRiskColor(contractor.riskLevel)}`}>
-                          {contractor.riskLevel} Risk
-                        </span>
-
-                        {/* Action Buttons */}
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleInvite(contractor);
-                            }}
-                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
-                          >
-                            Invite to Job
-                          </button>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedContractor(contractor);
-                            }}
-                            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg"
-                          >
-                            View
-                          </button>
+                          {/* Actions */}
+                          <div className="flex flex-wrap gap-3">
+                            <button
+                              onClick={() => handleInvite(contractor)}
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                            >
+                              <MessageSquare size={16} />
+                              Invite to Job
+                            </button>
+                            <button
+                              onClick={() => setSelectedContractor(contractor)}
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+                            >
+                              <FileText size={16} />
+                              View Details
+                            </button>
+                            <a
+                              href={`mailto:${contractor.contactInfo?.email}`}
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+                            >
+                              <Mail size={16} />
+                              Contact
+                            </a>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-
-            {/* Right Panel - Contractor Preview */}
-            <div className="lg:col-span-1">
-              {selectedContractor ? (
-                <div className="bg-white border border-gray-300 rounded-lg p-4 sticky top-24">
-                  {/* Contractor Header */}
-                  <div className="mb-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-16 h-16 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-xl flex items-center justify-center">
-                        <Building size={32} className="text-blue-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-gray-900">{selectedContractor.name}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="flex items-center">
-                            <Star size={14} className="text-amber-500 fill-amber-500" />
-                            <span className="text-sm font-bold ml-1">{selectedContractor.rating}</span>
-                          </div>
-                          <span className="text-xs text-gray-500">• Contact: {selectedContractor.contact}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 mb-4">
-                      <div className="p-2 bg-gray-50 rounded">
-                        <div className="text-xs text-gray-500">Experience</div>
-                        <div className="text-sm font-bold">{selectedContractor.experience}</div>
-                      </div>
-                      <div className="p-2 bg-gray-50 rounded">
-                        <div className="text-xs text-gray-500">Company Size</div>
-                        <div className="text-sm font-bold">{selectedContractor.companySize}</div>
-                      </div>
-                      <div className="p-2 bg-gray-50 rounded">
-                        <div className="text-xs text-gray-500">SLA Success</div>
-                        <div className="text-sm font-bold text-emerald-600">{selectedContractor.slaSuccess}%</div>
-                      </div>
-                      <div className="p-2 bg-gray-50 rounded">
-                        <div className="text-xs text-gray-500">On-time Rate</div>
-                        <div className="text-sm font-bold text-emerald-600">{selectedContractor.avgCompletion}</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Skills */}
-                  <div className="mb-4">
-                    <div className="text-sm font-medium text-gray-900 mb-2">Skills</div>
-                    <div className="flex flex-wrap gap-1">
-                      {selectedContractor.skills.map((skill, idx) => (
-                        <span key={idx} className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded">
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Certifications */}
-                  <div className="mb-4">
-                    <div className="text-sm font-medium text-gray-900 mb-2">Certifications</div>
-                    <div className="space-y-1">
-                      {selectedContractor.certifications.map((cert, idx) => (
-                        <div key={idx} className="flex items-center gap-1">
-                          <Award size={12} className="text-amber-500" />
-                          <span className="text-xs text-gray-700">{cert}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Past Projects */}
-                  <div className="mb-4">
-                    <div className="text-sm font-medium text-gray-900 mb-2">Recent Projects</div>
-                    <div className="space-y-2">
-                      {selectedContractor.pastProjects.map((project) => (
-                        <div key={project.id} className="p-2 bg-gray-50 rounded">
-                          <div className="text-xs font-medium text-gray-900">{project.name}</div>
-                          <div className="flex items-center gap-1 mt-1">
-                            <Star size={10} className="text-amber-500 fill-amber-500" />
-                            <span className="text-xs text-gray-700">{project.rating} rating</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Budget Range */}
-                  <div className="mb-6">
-                    <div className="text-sm font-medium text-gray-900 mb-1">Budget Range</div>
-                    <div className="text-sm text-gray-700">
-                      {selectedContractor.minBudget} - {selectedContractor.maxBudget}
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="space-y-2">
-                    <button 
-                      onClick={() => handleInvite(selectedContractor)}
-                      className="w-full py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-                    >
-                      Invite to Job
-                    </button>
-                    <button className="w-full py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium">
-                      View Full Profile
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-white border border-gray-300 rounded-lg p-8 text-center">
-                  <Target size={32} className="text-gray-400 mx-auto mb-4" />
-                  <h3 className="font-bold text-gray-900 mb-2">Select a Contractor</h3>
-                  <p className="text-gray-600 text-sm">
-                    Click on any contractor from the list to view their detailed profile and performance metrics.
-                  </p>
-                </div>
-              )}
-            </div>
+            )}
           </div>
-        )}
-      </main>
 
-      {/* Invite to Job Modal */}
+          {/* Selected Contractor Sidebar */}
+          {selectedContractor && (
+            <div className="lg:w-80">
+              <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 sticky top-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-bold text-gray-900">Contractor Details</h3>
+                  <button
+                    onClick={() => setSelectedContractor(null)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Contractor Header */}
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl flex items-center justify-center">
+                    {selectedContractor.logo ? (
+                      <img
+                        src={selectedContractor.logo}
+                        alt={selectedContractor.name}
+                        className="w-12 h-12 object-contain"
+                      />
+                    ) : (
+                      <Building size={36} className="text-blue-600" />
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-900">{selectedContractor.name}</h4>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center">
+                        <Star size={14} className="text-amber-500 fill-amber-500" />
+                        <span className="font-bold text-gray-900 ml-1">{selectedContractor.rating}</span>
+                      </div>
+                      <span className="text-sm text-gray-500">• {selectedContractor.reviews} reviews</span>
+                    </div>
+                    <div className="text-sm text-gray-600 mt-1">{selectedContractor.contact}</div>
+                  </div>
+                </div>
+
+                {/* Contact Info */}
+                <div className="mb-6">
+                  <h5 className="text-sm font-medium text-gray-900 mb-3">Contact Information</h5>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Mail size={14} className="text-gray-400" />
+                      <a
+                        href={`mailto:${selectedContractor.contactInfo?.email}`}
+                        className="text-sm text-blue-600 hover:text-blue-700"
+                      >
+                        {selectedContractor.contactInfo?.email}
+                      </a>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Phone size={14} className="text-gray-400" />
+                      <a
+                        href={`tel:${selectedContractor.contactInfo?.phone}`}
+                        className="text-sm text-gray-700"
+                      >
+                        {selectedContractor.contactInfo?.phone}
+                      </a>
+                    </div>
+                    {selectedContractor.contactInfo?.website && (
+                      <div className="flex items-center gap-2">
+                        <ExternalLink size={14} className="text-gray-400" />
+                        <a
+                          href={selectedContractor.contactInfo.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-600 hover:text-blue-700"
+                        >
+                          Website
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Certifications */}
+                {selectedContractor.certifications?.length > 0 && (
+                  <div className="mb-6">
+                    <h5 className="text-sm font-medium text-gray-900 mb-3">Certifications</h5>
+                    <div className="space-y-2">
+                      {selectedContractor.certifications.map((cert, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <Award size={14} className="text-amber-500" />
+                          <span className="text-sm text-gray-700">{cert}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent Projects */}
+                {selectedContractor.pastProjects?.length > 0 && (
+                  <div className="mb-6">
+                    <h5 className="text-sm font-medium text-gray-900 mb-3">Recent Projects</h5>
+                    <div className="space-y-3">
+                      {selectedContractor.pastProjects.slice(0, 3).map((project) => (
+                        <div key={project.id} className="bg-gray-50 rounded-lg p-3">
+                          <div className="text-sm font-medium text-gray-900">{project.name}</div>
+                          <div className="flex items-center gap-2 mt-2">
+                            <div className="flex items-center">
+                              <Star size={12} className="text-amber-500 fill-amber-500" />
+                              <span className="text-xs text-gray-700 ml-1">{project.rating}/5</span>
+                            </div>
+                            {project.budget && (
+                              <div className="text-xs text-gray-500">
+                                • {formatCurrency(project.budget)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="space-y-3">
+                  <button
+                    onClick={() => {
+                      handleInvite(selectedContractor);
+                      setShowInviteModal(true);
+                    }}
+                    className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                  >
+                    Invite to Job
+                  </button>
+                  <button
+                    onClick={() => window.open(`/contractors/${selectedContractor._id}`, '_blank')}
+                    className="w-full py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+                  >
+                    View Full Profile
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Invite Modal */}
       {showInviteModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-300">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-6">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">Send Job Invitation</h3>
-                  <p className="text-gray-600 text-sm mt-1">
-                    Invite {selectedContractor?.name || 'selected contractors'} to work on your project
+                  <h3 className="text-xl font-bold text-gray-900">Invite to Job</h3>
+                  <p className="text-gray-600 mt-1">
+                    {selectedContractor
+                      ? `Invite ${selectedContractor.name} to your project`
+                      : `Invite ${bulkSelect.length} contractors to your project`
+                    }
                   </p>
                 </div>
-                <button 
-                  onClick={() => setShowInviteModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg"
+                <button
+                  onClick={() => {
+                    setShowInviteModal(false);
+                    setSelectedJob('');
+                    setInviteMessage('');
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -916,141 +1023,205 @@ const AgentSearch = () => {
             <div className="p-6">
               {/* Step 1: Select Job */}
               <div className="mb-8">
-                <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm">1</span>
-                  Select Job
-                </h4>
-                <div className="space-y-3">
-                  {jobListings.map((job) => (
-                    <label 
-                      key={job.id}
-                      className={`flex items-start p-4 border rounded-lg cursor-pointer hover:border-blue-500 ${selectedJob === job.id ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+                    1
+                  </div>
+                  <h4 className="font-bold text-gray-900">Select Job</h4>
+                </div>
+
+                {isLoadingJobs ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="animate-spin text-blue-600" size={24} />
+                  </div>
+                ) : jobListings.length === 0 ? (
+                  <div className="text-center py-8 bg-gray-50 rounded-lg">
+                    <FileText className="mx-auto text-gray-400 mb-3" size={32} />
+                    <p className="text-gray-600 mb-4">No open jobs available</p>
+                    <a
+                      href="/agent/jobs/create"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
                     >
-                      <input 
-                        type="radio"
-                        name="job"
-                        value={job.id}
-                        checked={selectedJob === job.id}
-                        onChange={(e) => setSelectedJob(e.target.value)}
-                        className="mt-1"
-                      />
-                      <div className="ml-3 flex-1">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="font-medium text-gray-900">{job.title}</div>
-                            <div className="text-sm text-gray-600 mt-1">{job.location}</div>
+                      <Plus size={16} />
+                      Create New Job
+                    </a>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {jobListings.map((job) => (
+                      <label
+                        key={job._id}
+                        className={`flex p-4 border rounded-xl cursor-pointer transition-all ${selectedJob === job._id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-300 hover:border-blue-300'
+                          }`}
+                      >
+                        <input
+                          type="radio"
+                          name="job"
+                          value={job._id}
+                          checked={selectedJob === job._id}
+                          onChange={(e) => setSelectedJob(e.target.value)}
+                          className="mt-1"
+                        />
+                        <div className="ml-4 flex-1">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="font-bold text-gray-900">{job.title}</div>
+                              <div className="text-sm text-gray-600 mt-1">{job.location}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-bold text-gray-900">{formatCurrency(job.budget)}</div>
+                              <div className={`text-xs font-bold px-2 py-1 rounded-full ${getPriorityColor(job.priority)}`}>
+                                {job.priority}
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <div className="font-bold text-gray-900">{job.budget}</div>
-                            <div className={`text-xs font-bold px-2 py-0.5 rounded-full inline-block ${job.priority === 'HIGH' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                              {job.priority}
+                          <div className="grid grid-cols-3 gap-4 mt-4 text-sm">
+                            <div>
+                              <div className="text-gray-500">SLA</div>
+                              <div className="font-medium">{job.slaRemaining}</div>
+                            </div>
+                            <div>
+                              <div className="text-gray-500">Status</div>
+                              <div className="font-medium">{job.status}</div>
+                            </div>
+                            <div>
+                              <div className="text-gray-500">Posted</div>
+                              <div className="font-medium">{formatDate(job.createdAt)}</div>
                             </div>
                           </div>
                         </div>
-                        <div className="grid grid-cols-3 gap-4 mt-3 text-sm">
-                          <div>
-                            <div className="text-gray-500">SLA</div>
-                            <div className="font-medium">{job.slaRemaining}</div>
-                          </div>
-                          <div>
-                            <div className="text-gray-500">Status</div>
-                            <div className="font-medium">{job.status}</div>
-                          </div>
-                          <div>
-                            <div className="text-gray-500">Posted</div>
-                            <div className="font-medium">{job.posted}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Step 2: Configure Invitation */}
               <div className="mb-8">
-                <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm">2</span>
-                  Configure Invitation
-                </h4>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+                    2
+                  </div>
+                  <h4 className="font-bold text-gray-900">Configure Invitation</h4>
+                </div>
+
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-2">Message to Contractor</label>
-                    <textarea 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
-                      rows="3"
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                      Message to Contractor
+                    </label>
+                    <textarea
+                      value={inviteMessage}
+                      onChange={(e) => setInviteMessage(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none"
+                      rows={4}
                       placeholder="Explain the project requirements, timeline, and any special considerations..."
                     />
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-2">Expected Response Date</label>
-                      <input 
-                        type="date"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
-                      />
+                      <label className="block text-sm font-medium text-gray-900 mb-2">
+                        Response Deadline
+                      </label>
+                      <select
+                        value={responseDeadline}
+                        onChange={(e) => setResponseDeadline(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      >
+                        <option value="24">24 hours</option>
+                        <option value="48">48 hours</option>
+                        <option value="72">72 hours</option>
+                        <option value="168">1 week</option>
+                      </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-2">Response Deadline</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
-                        <option>24 hours</option>
-                        <option>48 hours</option>
-                        <option>3 days</option>
-                        <option>1 week</option>
-                      </select>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">
+                        Expected Start Date
+                      </label>
+                      <input
+                        type="date"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      />
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <label className="flex items-center">
-                      <input type="checkbox" className="rounded border-gray-300 text-blue-600" />
+                      <input
+                        type="checkbox"
+                        defaultChecked
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
                       <span className="ml-2 text-sm text-gray-700">Allow price negotiation</span>
                     </label>
                     <label className="flex items-center">
-                      <input type="checkbox" className="rounded border-gray-300 text-blue-600" />
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
                       <span className="ml-2 text-sm text-gray-700">Mark as priority invitation</span>
                     </label>
                     <label className="flex items-center">
-                      <input type="checkbox" className="rounded border-gray-300 text-blue-600" />
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
                       <span className="ml-2 text-sm text-gray-700">Request work plan submission</span>
                     </label>
                   </div>
                 </div>
               </div>
 
-              {/* Step 3: Send */}
+              {/* Step 3: Review & Send */}
               <div>
-                <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm">3</span>
-                  Send Invitation
-                </h4>
-                <div className="bg-gray-50 border border-gray-300 rounded-lg p-4 mb-6">
-                  <div className="text-sm text-gray-700 mb-2">
-                    <strong>Contractor:</strong> {selectedContractor?.name || `${bulkSelect.length} contractors`}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+                    3
                   </div>
-                  <div className="text-sm text-gray-700 mb-2">
-                    <strong>Job:</strong> {jobListings.find(j => j.id === selectedJob)?.title || 'Not selected'}
-                  </div>
-                  <div className="text-sm text-gray-700">
-                    <strong>Invitation ID:</strong> INV-{Date.now().toString().slice(-6)}
+                  <h4 className="font-bold text-gray-900">Review & Send</h4>
+                </div>
+
+                <div className="bg-gray-50 border border-gray-300 rounded-xl p-4 mb-6">
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Contractors</span>
+                      <span className="text-sm font-bold text-gray-900">
+                        {selectedContractor
+                          ? selectedContractor.name
+                          : `${bulkSelect.length} selected`
+                        }
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Job</span>
+                      <span className="text-sm font-bold text-gray-900">
+                        {jobListings.find(j => j._id === selectedJob)?.title || 'Not selected'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Response Deadline</span>
+                      <span className="text-sm font-bold text-gray-900">{responseDeadline} hours</span>
+                    </div>
                   </div>
                 </div>
 
                 <div className="flex justify-end gap-3">
-                  <button 
+                  <button
                     onClick={() => setShowInviteModal(false)}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
                   >
                     Cancel
                   </button>
-                  <button 
-                    onClick={() => {
-                      // Handle invitation send
-                      setShowInviteModal(false);
-                      alert(`Invitation sent to ${selectedContractor?.name || `${bulkSelect.length} contractors`}!`);
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                  <button
+                    onClick={handleSendInvitation}
+                    disabled={!selectedJob}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${selectedJob
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      }`}
                   >
                     Send Invitation
                   </button>

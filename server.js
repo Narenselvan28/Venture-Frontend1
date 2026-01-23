@@ -1,13 +1,50 @@
+/**
+ * VENTUREOPS - PRODUCTION BACKEND SERVER
+ * 
+ * Architecture: Monolithic Node.js/Express
+ * Database: MongoDB (Mongoose)
+ * Storage: Firebase Admin
+ * Auth: JWT (HTTP-Only Cookie + Header Support)
+ * 
+ * Copyright (c) 2024 VentureOps
+ */
+
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const multer = require('multer');
-const path = require('path');
 const cors = require('cors');
-require('dotenv').config();
+const bcrypt = require('bcryptjs');
+const cookieParser = require('cookie-parser');
+const multer = require('multer');
+const cron = require('node-cron');
+const firebaseAdmin = require('firebase-admin');
+const path = require('path');
 
+// Initialize Express
 const app = express();
+
+// ==========================================
+// 1. CONFIGURATION & SETUP
+// ==========================================
+
+// Firebase Setup (Mock if credentials missing for dev)
+let bucket;
+try {
+    if (process.env.FIREBASE_CREDENTIALS) {
+        const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
+        firebaseAdmin.initializeApp({
+            credential: firebaseAdmin.credential.cert(serviceAccount),
+            storageBucket: process.env.FIREBASE_BUCKET_URL
+        });
+        bucket = firebaseAdmin.storage().bucket();
+        console.log('✅ Firebase Admin Initialized');
+    } else {
+        console.log('⚠️ Firebase Credentials missing. File uploads will be mocked.');
+    }
+} catch (error) {
+    console.error('❌ Firebase Init Error:', error.message);
+}
 
 // Middleware
 app.use(cors({
@@ -16,946 +53,605 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static('uploads'));
+app.use(cookieParser());
 
 // Database Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/ventureops', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-})
-.then(() => console.log('✅ MongoDB Connected'))
-.catch(err => console.error('❌ MongoDB Connection Error:', err));
-
-// ==================== MODELS ====================
-const UserSchema = new mongoose.Schema({
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    role: { type: String, enum: ['agent', 'contractor', 'admin'], required: true },
-    profile: {
-        type: mongoose.Schema.Types.ObjectId,
-        refPath: 'role'
-    },
-    isVerified: { type: Boolean, default: false },
-    createdAt: { type: Date, default: Date.now }
-});
-
-const AgentProfileSchema = new mongoose.Schema({
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    name: { type: String, required: true },
-    company: String,
-    phone: String,
-    location: String,
-    experience: String,
-    bio: String,
-    avatar: String,
-    stats: {
-        jobsCreated: { type: Number, default: 0 },
-        jobsActive: { type: Number, default: 0 },
-        jobsCompleted: { type: Number, default: 0 },
-        slaCompliance: { type: Number, default: 0 },
-        budgetManaged: { type: Number, default: 0 }
-    }
-});
-
-const ContractorProfileSchema = new mongoose.Schema({
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    companyName: { type: String, required: true },
-    contactName: { type: String, required: true },
-    email: String,
-    phone: String,
-    location: String,
-    skills: [String],
-    experience: { type: String, default: '0 years' },
-    rating: { type: Number, default: 0 },
-    reviews: { type: Number, default: 0 },
-    jobsCompleted: { type: Number, default: 0 },
-    slaSuccess: { type: Number, default: 0 },
-    avatar: String,
-    isVerified: { type: Boolean, default: false }
-});
-
-const JobSchema = new mongoose.Schema({
-    title: { type: String, required: true },
-    description: { type: String, required: true },
-    category: { 
-        type: String, 
-        enum: ['Electrical', 'HVAC', 'Plumbing', 'Safety', 'Industrial', 'Commercial', 'Residential'],
-        required: true 
-    },
-    subCategory: String,
-    location: {
-        address: String,
-        city: String,
-        state: String,
-        country: { type: String, default: 'India' }
-    },
-    budget: { type: Number, required: true },
-    priority: { 
-        type: String, 
-        enum: ['HIGH', 'MEDIUM', 'LOW'], 
-        default: 'MEDIUM' 
-    },
-    status: { 
-        type: String, 
-        enum: ['draft', 'posted', 'in_progress', 'completed', 'cancelled'],
-        default: 'draft' 
-    },
-    slaHours: { type: Number, required: true },
-    slaStartDate: Date,
-    slaEndDate: Date,
-    client: { type: mongoose.Schema.Types.ObjectId, ref: 'AgentProfile' },
-    contractor: { type: mongoose.Schema.Types.ObjectId, ref: 'ContractorProfile' },
-    agent: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    skillsRequired: [String],
-    tags: [String],
-    isUrgent: { type: Boolean, default: false },
-    fastPayout: { type: Boolean, default: false },
-    views: { type: Number, default: 0 },
-    applications: [{ type: mongoose.Schema.Types.ObjectId, ref: 'JobApplication' }],
-    timeline: [{
-        step: Number,
-        name: String,
-        description: String,
-        status: { 
-            type: String, 
-            enum: ['pending', 'in_progress', 'completed', 'approved', 'rejected'],
-            default: 'pending' 
-        },
-        startDate: Date,
-        endDate: Date,
-        evidence: [{
-            url: String,
-            type: String,
-            caption: String,
-            uploadedAt: Date
-        }]
-    }],
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now }
-});
-
-const JobApplicationSchema = new mongoose.Schema({
-    job: { type: mongoose.Schema.Types.ObjectId, ref: 'Job' },
-    contractor: { type: mongoose.Schema.Types.ObjectId, ref: 'ContractorProfile' },
-    proposal: String,
-    quote: Number,
-    estimatedTime: String,
-    status: { 
-        type: String, 
-        enum: ['pending', 'reviewed', 'shortlisted', 'approved', 'rejected'],
-        default: 'pending' 
-    },
-    riskScore: { type: Number, default: 0 },
-    skills: [String],
-    createdAt: { type: Date, default: Date.now }
-});
-
-// Create Models
-const User = mongoose.model('User', UserSchema);
-const AgentProfile = mongoose.model('AgentProfile', AgentProfileSchema);
-const ContractorProfile = mongoose.model('ContractorProfile', ContractorProfileSchema);
-const Job = mongoose.model('Job', JobSchema);
-const JobApplication = mongoose.model('JobApplication', JobApplicationSchema);
-
-// ==================== MIDDLEWARE ====================
-const auth = async (req, res, next) => {
+const connectDB = async () => {
     try {
-        const token = req.header('Authorization')?.replace('Bearer ', '');
-        
-        if (!token) {
-            return res.status(401).json({ error: 'No authentication token' });
+        let uri = process.env.MONGODB_URI;
+        if (!uri) {
+            console.log('⚠️ No MONGODB_URI. Starting In-Memory Mongo...');
+            const { MongoMemoryServer } = require('mongodb-memory-server');
+            const mongod = await MongoMemoryServer.create();
+            uri = mongod.getUri();
         }
+        await mongoose.connect(uri);
+        console.log(`✅ MongoDB Connected: ${uri}`);
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-        const user = await User.findById(decoded.userId).populate('profile');
-        
-        if (!user) {
-            return res.status(401).json({ error: 'User not found' });
-        }
-
-        req.user = user;
-        req.token = token;
-        next();
-    } catch (error) {
-        res.status(401).json({ error: 'Authentication failed' });
+        // Start SLA Monitor
+        slaMonitor.start();
+    } catch (err) {
+        console.error('❌ DB Connection Failed:', err);
+        process.exit(1);
     }
 };
 
-const upload = multer({
-    storage: multer.diskStorage({
-        destination: (req, file, cb) => {
-            cb(null, 'uploads/');
-        },
-        filename: (req, file, cb) => {
-            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-            cb(null, uniqueSuffix + path.extname(file.originalname));
-        }
-    }),
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-    fileFilter: (req, file, cb) => {
-        const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx/;
-        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = allowedTypes.test(file.mimetype);
-        
-        if (mimetype && extname) {
-            return cb(null, true);
-        } else {
-            cb(new Error('Only images and documents are allowed'));
-        }
+// ==========================================
+// 2. CORE ENTITIES (SCHEMAS)
+// ==========================================
+
+const Schema = mongoose.Schema;
+
+// --- 2.1 User & Identity ---
+const UserSchema = new Schema({
+    email: { type: String, required: true, unique: true, index: true },
+    password: { type: String, required: true },
+    role: { type: String, enum: ['AGENT', 'CONTRACTOR', 'ADMIN'], required: true },
+    name: { type: String, required: true },
+    companyName: String, // For Agents/Contractors
+    companyType: String, // For Agents
+    designation: String, // For Agents
+    specializations: [String], // For Contractors
+    phone: String,
+    location: {
+        city: String,
+        state: String,
+        country: String
+    },
+    isVerified: { type: Boolean, default: false },
+    stats: {
+        jobsCompleted: { type: Number, default: 0 },
+        rating: { type: Number, default: 0 }
+    },
+    createdAt: { type: Date, default: Date.now }
+});
+
+// --- 2.2 Job Core ---
+const JobSchema = new Schema({
+    jobCode: { type: String, unique: true }, // generated e.g., VOP-2024-001
+    title: { type: String, required: true },
+    description: { type: String, required: true },
+    category: { type: String, required: true },
+
+    // Financials
+    budget: { type: Number, required: true },
+    currency: { type: String, default: 'USD' },
+
+    // Criticality
+    priority: { type: String, enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], default: 'MEDIUM' },
+
+    // Lifecycle Status
+    status: {
+        type: String,
+        enum: [
+            'DRAFT', 'PUBLISHED', 'BIDDING', 'ASSIGNED',
+            'IN_PROGRESS', 'COMPLETION_SUBMITTED',
+            'VERIFIED', 'INVOICED', 'CLOSED', 'CANCELLED'
+        ],
+        default: 'DRAFT'
+    },
+
+    // Risk Management
+    riskState: { type: String, enum: ['ON_TRACK', 'AT_RISK', 'DELAYED'], default: 'ON_TRACK' },
+
+    // Relationships
+    agentId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    contractorId: { type: Schema.Types.ObjectId, ref: 'User' },
+
+    // SLA Config
+    slaTemplateId: { type: Schema.Types.ObjectId, ref: 'SLATemplate' },
+    slaDeadline: Date,
+
+    progressPercent: { type: Number, default: 0 },
+    createdAt: { type: Date, default: Date.now }
+});
+
+// --- 2.3 Job Timeline (Event Sourcing) ---
+const TimelineEventSchema = new Schema({
+    type: { type: String, required: true }, // e.g., STATUS_CHANGE, UPLOAD, COMMENT
+    description: { type: String, required: true },
+    actorId: { type: Schema.Types.ObjectId, ref: 'User' },
+    timestamp: { type: Date, default: Date.now },
+    metadata: Schema.Types.Mixed
+});
+
+const JobTimelineSchema = new Schema({
+    jobId: { type: Schema.Types.ObjectId, ref: 'Job', required: true, unique: true },
+    plannedStart: Date,
+    plannedEnd: Date,
+    actualStart: Date,
+    actualEnd: Date,
+    events: [TimelineEventSchema]
+});
+
+// --- 2.4 Evidence & Documents ---
+const JobDocumentSchema = new Schema({
+    jobId: { type: Schema.Types.ObjectId, ref: 'Job', required: true },
+    uploaderId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    type: { type: String, enum: ['PHOTO_BEFORE', 'PHOTO_AFTER', 'PHOTO_DURING', 'REPORT', 'INVOICE', 'PLAN'], required: true },
+    url: { type: String, required: true }, // Firebase URL
+    filename: String,
+    status: { type: String, enum: ['PENDING', 'APPROVED', 'REJECTED'], default: 'PENDING' },
+    rejectionReason: String,
+    uploadedAt: { type: Date, default: Date.now }
+});
+
+// --- 2.5 Audit Log ---
+const AuditLogSchema = new Schema({
+    entity: { type: String, required: true }, // Job, User, Invoice
+    entityId: Schema.Types.ObjectId,
+    action: { type: String, required: true },
+    actorId: { type: Schema.Types.ObjectId, ref: 'User' },
+    details: Schema.Types.Mixed,
+    ipAddress: String,
+    timestamp: { type: Date, default: Date.now }
+});
+
+// --- 2.6 Applications (Bids) ---
+const ApplicationSchema = new Schema({
+    jobId: { type: Schema.Types.ObjectId, ref: 'Job', required: true },
+    contractorId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    coverLetter: String,
+    quoteAmount: Number,
+    estimatedDays: Number,
+    status: { type: String, enum: ['PENDING', 'SHORTLISTED', 'REJECTED', 'ACCEPTED'], default: 'PENDING' },
+    createdAt: { type: Date, default: Date.now }
+});
+
+// Models
+const User = mongoose.model('User', UserSchema);
+const Job = mongoose.model('Job', JobSchema);
+const JobTimeline = mongoose.model('JobTimeline', JobTimelineSchema);
+const JobDocument = mongoose.model('JobDocument', JobDocumentSchema);
+const AuditLog = mongoose.model('AuditLog', AuditLogSchema);
+const Application = mongoose.model('Application', ApplicationSchema);
+
+// ==========================================
+// 3. UTILITIES & SERVICES
+// ==========================================
+
+// --- 3.1 Auth Utilities ---
+const generateToken = (user) => {
+    return jwt.sign(
+        { id: user._id, role: user.role, email: user.email },
+        process.env.JWT_SECRET || 'dev_secret_key_123',
+        { expiresIn: '7d' }
+    );
+};
+
+// --- 3.2 Audit Logger ---
+const logAudit = async (entity, entityId, action, actorId, details, req) => {
+    try {
+        await AuditLog.create({
+            entity,
+            entityId,
+            action,
+            actorId,
+            details,
+            ipAddress: req?.ip || '0.0.0.0'
+        });
+    } catch (e) {
+        console.error('Audit Log Failed:', e);
+    }
+};
+
+// --- 3.3 Timeline Manager ---
+const updateTimeline = async (jobId, eventType, description, actorId, metadata = {}) => {
+    try {
+        await JobTimeline.findOneAndUpdate(
+            { jobId },
+            {
+                $push: {
+                    events: {
+                        type: eventType,
+                        description,
+                        actorId,
+                        metadata,
+                        timestamp: new Date()
+                    }
+                }
+            },
+            { upsert: true, new: true }
+        );
+    } catch (e) {
+        console.error('Timeline Update Failed:', e);
+    }
+};
+
+// --- 3.4 File Upload Service ---
+const uploadService = {
+    middleware: multer({ storage: multer.memoryStorage() }).single('file'),
+
+    uploadToFirebase: async (file) => {
+        if (!bucket) return `https://mock-storage.com/${Date.now()}_${file.originalname}`;
+
+        const blob = bucket.file(`ventureops/${Date.now()}_${file.originalname}`);
+        const blobStream = blob.createWriteStream({
+            metadata: { contentType: file.mimetype }
+        });
+
+        return new Promise((resolve, reject) => {
+            blobStream.on('error', (err) => reject(err));
+            blobStream.on('finish', () => {
+                // Get public URL (assuming bucket is public or signed URL needed)
+                // For now, return a signed URL valid for long time or public structure
+                blob.getSignedUrl({
+                    action: 'read',
+                    expires: '03-09-2491'
+                }).then(urls => resolve(urls[0]));
+            });
+            blobStream.end(file.buffer);
+        });
+    }
+};
+
+// --- 3.5 SLA Monitor (Cron) ---
+const slaMonitor = cron.schedule('*/30 * * * *', async () => {
+    console.log('🔄 Running SLA Monitor...');
+    // Find jobs 'IN_PROGRESS' that are past deadline
+    const now = new Date();
+    const delayedJobs = await Job.find({
+        status: 'IN_PROGRESS',
+        slaDeadline: { $lt: now },
+        riskState: { $ne: 'DELAYED' }
+    });
+
+    for (const job of delayedJobs) {
+        job.riskState = 'DELAYED';
+        await job.save();
+        await updateTimeline(job._id, 'RISK_UPDATE', 'Job marked DELAYED due to SLA breach', null);
+        console.log(`⚠️ Job ${job.jobCode} marked DELAYED`);
     }
 });
 
-// ==================== AUTH ROUTES ====================
+// ==========================================
+// 4. MIDDLEWARE
+// ==========================================
+
+const protect = async (req, res, next) => {
+    let token;
+
+    // 1. Check for Token (Cookie/Header)
+    if (req.cookies.token) {
+        token = req.cookies.token;
+    } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+        token = req.headers.authorization.split(' ')[1];
+    }
+
+    // 2. Dev Mode Bypass (If no token, check for Dev Role Header)
+    if (!token && req.headers['x-dev-role']) {
+        try {
+            const devRole = req.headers['x-dev-role'].toUpperCase();
+            const devEmail = `dev-${devRole.toLowerCase()}@ventureops.com`;
+
+            // Find or Create Dev User
+            let user = await User.findOne({ email: devEmail });
+            if (!user) {
+                user = await User.create({
+                    email: devEmail,
+                    password: await bcrypt.hash('devpass123', 10),
+                    name: `Dev ${devRole}`,
+                    role: devRole,
+                    companyName: 'Dev Corp',
+                    companyType: 'STARTUP', // Default for Agent
+                    designation: 'Developer',
+                    isVerified: true
+                });
+                console.log(`🛠️ Created Dev User: ${devEmail}`);
+            }
+
+            req.user = user;
+            return next();
+        } catch (error) {
+            console.error('Dev Auth Error:', error);
+            // Fallthrough to standard unauthorized error
+        }
+    }
+
+    if (!token) return res.status(401).json({ success: false, error: 'Not authorized' });
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev_secret_key_123');
+        req.user = await User.findById(decoded.id).select('-password');
+        next();
+    } catch (error) {
+        res.status(401).json({ success: false, error: 'Token invalid' });
+    }
+};
+
+const restrictTo = (...roles) => {
+    return (req, res, next) => {
+        if (!roles.includes(req.user.role)) {
+            return res.status(403).json({ success: false, error: 'Permission denied' });
+        }
+        next();
+    };
+};
+
+// ==========================================
+// 5. API ROUTES
+// ==========================================
+
+// --- 5.1 Auth Routes ---
 app.post('/api/auth/register', async (req, res) => {
     try {
-        const { email, password, role, name, company, phone, location } = req.body;
-        
-        // Check if user exists
-        const existingUser = await User.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({ error: 'Email already registered' });
-        }
-        
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
-        
-        // Create user
-        const user = new User({
+        const { email, password, role, name, companyName, ...others } = req.body;
+
+        const existing = await User.findOne({ email });
+        if (existing) return res.status(400).json({ error: 'User exists' });
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        const user = await User.create({
             email,
             password: hashedPassword,
-            role
+            role: role.toUpperCase(),
+            name,
+            companyName,
+            ...others
         });
-        
-        await user.save();
-        
-        // Create profile based on role
-        let profile;
-        if (role === 'agent') {
-            profile = new AgentProfile({
-                userId: user._id,
-                name,
-                company,
-                phone,
-                location
-            });
-        } else {
-            profile = new ContractorProfile({
-                userId: user._id,
-                companyName: company,
-                contactName: name,
-                email,
-                phone,
-                location
-            });
-        }
-        
-        await profile.save();
-        
-        // Update user with profile reference
-        user.profile = profile._id;
-        await user.save();
-        
-        // Generate token
-        const token = jwt.sign(
-            { userId: user._id, role: user.role },
-            process.env.JWT_SECRET || 'your-secret-key',
-            { expiresIn: '7d' }
-        );
-        
-        res.status(201).json({
-            success: true,
-            token,
-            user: {
-                id: user._id,
-                email: user.email,
-                role: user.role,
-                profile: profile
-            }
+
+        const token = generateToken(user);
+
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 7 * 24 * 60 * 60 * 1000
         });
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+
+        await logAudit('User', user._id, 'REGISTER', user._id, { role });
+
+        res.status(201).json({ success: true, user: { id: user._id, name: user.name, role: user.role } });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-        
-        // Find user
-        const user = await User.findOne({ email }).populate('profile');
-        if (!user) {
+        const user = await User.findOne({ email });
+
+        if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
-        
-        // Check password
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-        
-        // Generate token
-        const token = jwt.sign(
-            { userId: user._id, role: user.role },
-            process.env.JWT_SECRET || 'your-secret-key',
-            { expiresIn: '7d' }
-        );
-        
-        res.json({
-            success: true,
-            token,
-            user: {
-                id: user._id,
-                email: user.email,
-                role: user.role,
-                profile: user.profile
-            }
+
+        const token = generateToken(user);
+
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 7 * 24 * 60 * 60 * 1000
         });
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+
+        res.json({ success: true, user: { id: user._id, name: user.name, role: user.role } });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
-app.get('/api/auth/me', auth, async (req, res) => {
-    res.json({
-        success: true,
-        user: req.user
-    });
+app.get('/api/auth/me', protect, (req, res) => {
+    res.json({ success: true, user: req.user });
 });
 
-// ==================== JOB ROUTES ====================
-// Get all jobs for agent
-app.get('/api/agent/jobs', auth, async (req, res) => {
-    try {
-        if (req.user.role !== 'agent') {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-        
-        const { status, page = 1, limit = 10 } = req.query;
-        const query = { client: req.user.profile._id };
-        
-        if (status) query.status = status;
-        
-        const jobs = await Job.find(query)
-            .populate('contractor', 'companyName contactName rating')
-            .populate('applications')
-            .sort('-createdAt')
-            .skip((page - 1) * limit)
-            .limit(parseInt(limit));
-            
-        const total = await Job.countDocuments(query);
-        
-        res.json({
-            success: true,
-            jobs,
-            total,
-            pages: Math.ceil(total / limit),
-            currentPage: parseInt(page)
-        });
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+app.post('/api/auth/logout', (req, res) => {
+    res.clearCookie('token');
+    res.json({ success: true, message: 'Logged out' });
 });
 
-// Get job feed for contractors
-app.get('/api/contractor/jobs/feed', auth, async (req, res) => {
+// --- 5.2 Job Management (Agent) ---
+app.post('/api/jobs', protect, restrictTo('AGENT'), async (req, res) => {
     try {
-        if (req.user.role !== 'contractor') {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-        
-        const { category, location, page = 1, limit = 10 } = req.query;
-        const contractorId = req.user.profile._id;
-        
-        const query = {
-            status: 'posted',
-            $or: [
-                { contractor: null },
-                { contractor: { $ne: contractorId } }
-            ]
-        };
-        
-        if (category) query.category = category;
-        if (location) query['location.city'] = location;
-        
-        const jobs = await Job.find(query)
-            .populate('client', 'name company phone')
-            .sort('-createdAt')
-            .skip((page - 1) * limit)
-            .limit(parseInt(limit));
-            
-        // Get contractor's applications
-        const applications = await JobApplication.find({
-            contractor: contractorId
-        });
-        
-        const appliedJobs = applications.map(app => app.job.toString());
-        
-        // Add match scores (simplified)
-        const jobsWithMatch = jobs.map(job => {
-            let matchScore = 50;
-            
-            // Skill matching
-            if (req.user.profile.skills && job.skillsRequired) {
-                const matchingSkills = job.skillsRequired.filter(skill => 
-                    req.user.profile.skills.includes(skill)
-                );
-                matchScore += (matchingSkills.length / job.skillsRequired.length) * 30;
-            }
-            
-            // Location bonus
-            if (job.location?.city === req.user.profile.location) {
-                matchScore += 10;
-            }
-            
-            matchScore = Math.min(Math.round(matchScore), 100);
-            
-            return {
-                ...job.toObject(),
-                matchScore,
-                isApplied: appliedJobs.includes(job._id.toString())
-            };
-        });
-        
-        const total = await Job.countDocuments(query);
-        
-        res.json({
-            success: true,
-            jobs: jobsWithMatch,
-            total,
-            pages: Math.ceil(total / limit),
-            currentPage: parseInt(page),
-            appliedJobs
-        });
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+        const jobCode = `VOP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-// Create new job
-app.post('/api/jobs', auth, async (req, res) => {
-    try {
-        if (req.user.role !== 'agent') {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-        
-        const job = new Job({
+        // Calculate SLA Deadline (default 7 days for now)
+        const slaDeadline = new Date();
+        slaDeadline.setDate(slaDeadline.getDate() + 7);
+
+        const job = await Job.create({
             ...req.body,
-            client: req.user.profile._id,
-            agent: req.user._id
+            jobCode,
+            agentId: req.user._id,
+            status: 'DRAFT',
+            slaDeadline
         });
-        
-        await job.save();
-        
-        // Update agent stats
-        await AgentProfile.findByIdAndUpdate(req.user.profile._id, {
-            $inc: { 'stats.jobsCreated': 1 }
-        });
-        
-        res.status(201).json({
-            success: true,
-            job
-        });
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+
+        // Init Timeline
+        await JobTimeline.create({ jobId: job._id });
+        await updateTimeline(job._id, 'CREATED', 'Job Created as Draft', req.user._id);
+
+        res.status(201).json({ success: true, job });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
-// Get job details
-app.get('/api/jobs/:id', auth, async (req, res) => {
+// --- 5.1 Agent/Job Management ---
+app.get('/api/jobs', protect, async (req, res) => {
+    try {
+        let query = {};
+        if (req.user.role === 'AGENT') {
+            query.agentId = req.user._id;
+        } else if (req.user.role === 'CONTRACTOR') {
+            // Contractors see PUBLISHED jobs OR jobs assigned to them
+            query = {
+                $or: [
+                    { status: 'PUBLISHED' },
+                    { status: 'OPEN' }, // Legacy support
+                    { contractorId: req.user._id }
+                ]
+            };
+        }
+
+        const jobs = await Job.find(query).populate('agentId', 'name companyName');
+        res.json({ success: true, count: jobs.length, jobs });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/jobs/:id', protect, async (req, res) => {
     try {
         const job = await Job.findById(req.params.id)
-            .populate('client', 'name company phone location')
-            .populate('contractor', 'companyName contactName rating skills')
-            .populate({
-                path: 'applications',
-                populate: {
-                    path: 'contractor',
-                    select: 'companyName contactName rating skills'
-                }
-            });
-            
-        if (!job) {
-            return res.status(404).json({ error: 'Job not found' });
-        }
-        
-        // Check authorization
-        const isAuthorized = (
-            (req.user.role === 'agent' && job.client._id.toString() === req.user.profile._id.toString()) ||
-            (req.user.role === 'contractor' && job.contractor && 
-             job.contractor._id.toString() === req.user.profile._id.toString())
-        );
-        
-        if (!isAuthorized) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-        
-        res.json({
-            success: true,
-            job
-        });
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+            .populate('agentId', 'name companyName')
+            .populate('contractorId', 'name companyName');
+
+        if (!job) return res.status(404).json({ error: 'Job not found' });
+
+        res.json({ success: true, job });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
-// ==================== APPLICATION ROUTES ====================
-// Apply for a job
-app.post('/api/jobs/:id/apply', auth, async (req, res) => {
-    try {
-        if (req.user.role !== 'contractor') {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-        
-        const job = await Job.findById(req.params.id);
-        if (!job) {
-            return res.status(404).json({ error: 'Job not found' });
-        }
-        
-        // Check if already applied
-        const existingApplication = await JobApplication.findOne({
-            job: job._id,
-            contractor: req.user.profile._id
-        });
-        
-        if (existingApplication) {
-            return res.status(400).json({ error: 'Already applied to this job' });
-        }
-        
-        const application = new JobApplication({
-            job: job._id,
-            contractor: req.user.profile._id,
-            ...req.body
-        });
-        
-        await application.save();
-        
-        // Add to job's applications
-        job.applications.push(application._id);
-        await job.save();
-        
-        res.status(201).json({
-            success: true,
-            application
-        });
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Get applications for a job
-app.get('/api/jobs/:id/applications', auth, async (req, res) => {
+app.put('/api/jobs/:id/publish', protect, restrictTo('AGENT'), async (req, res) => {
     try {
         const job = await Job.findById(req.params.id);
-        
-        if (!job) {
-            return res.status(404).json({ error: 'Job not found' });
-        }
-        
-        // Check authorization
-        if (req.user.role !== 'agent' || job.client.toString() !== req.user.profile._id.toString()) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-        
-        const applications = await JobApplication.find({ job: job._id })
-            .populate('contractor', 'companyName contactName rating skills experience jobsCompleted');
-            
-        res.json({
-            success: true,
-            applications
-        });
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+        if (!job) return res.status(404).json({ error: 'Job not found' });
+        if (job.agentId.toString() !== req.user._id.toString()) return res.status(403).json({ error: 'Unauthorized' });
+
+        job.status = 'PUBLISHED';
+        await job.save();
+        await updateTimeline(job._id, 'PUBLISHED', 'Job opened for bidding', req.user._id);
+
+        res.json({ success: true, job });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
-// Update application status
-app.put('/api/applications/:id/status', auth, async (req, res) => {
+app.post('/api/jobs/:id/assign', protect, restrictTo('AGENT'), async (req, res) => {
     try {
-        const { status } = req.body;
-        
-        const application = await JobApplication.findById(req.params.id)
-            .populate('job');
-            
-        if (!application) {
-            return res.status(404).json({ error: 'Application not found' });
-        }
-        
-        // Check authorization
-        if (req.user.role !== 'agent' || 
-            application.job.client.toString() !== req.user.profile._id.toString()) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-        
-        application.status = status;
-        await application.save();
-        
-        // If approved, assign contractor to job
-        if (status === 'approved') {
-            await Job.findByIdAndUpdate(application.job._id, {
-                contractor: application.contractor,
-                status: 'in_progress',
-                slaStartDate: new Date(),
-                slaEndDate: new Date(Date.now() + (application.job.slaHours * 60 * 60 * 1000))
-            });
-            
-            // Create timeline
-            const timeline = [
-                { step: 1, name: 'Site Survey & Planning', status: 'pending' },
-                { step: 2, name: 'Material Delivery & Verification', status: 'pending' },
-                { step: 3, name: 'Installation', status: 'pending' },
-                { step: 4, name: 'Testing & Validation', status: 'pending' },
-                { step: 5, name: 'Final Handover', status: 'pending' }
-            ];
-            
-            await Job.findByIdAndUpdate(application.job._id, { timeline });
-        }
-        
-        res.json({
-            success: true,
-            application
-        });
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// ==================== TIMELINE ROUTES ====================
-// Update timeline step
-app.put('/api/jobs/:id/timeline/:stepId', auth, async (req, res) => {
-    try {
-        const { stepId } = req.params;
-        const { status, evidence } = req.body;
-        
+        const { contractorId } = req.body;
         const job = await Job.findById(req.params.id);
-        
-        if (!job) {
-            return res.status(404).json({ error: 'Job not found' });
-        }
-        
-        // Check authorization
-        const isAuthorized = (
-            (req.user.role === 'agent' && job.client.toString() === req.user.profile._id.toString()) ||
-            (req.user.role === 'contractor' && job.contractor && 
-             job.contractor.toString() === req.user.profile._id.toString())
-        );
-        
-        if (!isAuthorized) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-        
-        // Update timeline step
-        const stepIndex = job.timeline.findIndex(step => step._id.toString() === stepId);
-        
-        if (stepIndex === -1) {
-            return res.status(404).json({ error: 'Step not found' });
-        }
-        
-        const step = job.timeline[stepIndex];
-        
-        if (status) step.status = status;
-        if (evidence) step.evidence = evidence;
-        
-        if (status === 'completed' && !step.endDate) {
-            step.endDate = new Date();
-        }
-        
-        if (status === 'in_progress' && !step.startDate) {
-            step.startDate = new Date();
-        }
-        
+
+        job.contractorId = contractorId;
+        job.status = 'ASSIGNED';
         await job.save();
-        
-        res.json({
-            success: true,
-            job
-        });
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+
+        await updateTimeline(job._id, 'ASSIGNED', 'Contractor assigned', req.user._id, { contractorId });
+        await logAudit('Job', job._id, 'ASSIGNED', req.user._id, { contractorId });
+
+        res.json({ success: true, job });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
-// Upload evidence
-app.post('/api/timeline/evidence', auth, upload.array('files', 5), async (req, res) => {
+// --- 5.3 Contractor Operations ---
+app.post('/api/jobs/:id/apply', protect, restrictTo('CONTRACTOR'), async (req, res) => {
     try {
-        const { jobId, stepId, captions } = req.body;
-        
-        const job = await Job.findById(jobId);
-        
-        if (!job) {
-            return res.status(404).json({ error: 'Job not found' });
-        }
-        
-        // Check authorization
-        if (req.user.role !== 'contractor' || 
-            job.contractor.toString() !== req.user.profile._id.toString()) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-        
-        const stepIndex = job.timeline.findIndex(step => step._id.toString() === stepId);
-        
-        if (stepIndex === -1) {
-            return res.status(404).json({ error: 'Step not found' });
-        }
-        
-        // Add evidence
-        const evidence = req.files.map((file, index) => ({
-            url: `/uploads/${file.filename}`,
-            type: file.mimetype.startsWith('image/') ? 'image' : 'document',
-            caption: captions ? captions[index] : `Evidence ${index + 1}`,
-            uploadedAt: new Date()
-        }));
-        
-        job.timeline[stepIndex].evidence = [
-            ...(job.timeline[stepIndex].evidence || []),
-            ...evidence
-        ];
-        
+        const { coverLetter, quoteAmount, estimatedDays } = req.body;
+
+        const existing = await Application.findOne({ jobId: req.params.id, contractorId: req.user._id });
+        if (existing) return res.status(400).json({ error: 'Already applied' });
+
+        const application = await Application.create({
+            jobId: req.params.id,
+            contractorId: req.user._id,
+            coverLetter,
+            quoteAmount,
+            estimatedDays
+        });
+
+        await updateTimeline(req.params.id, 'APPLICATION_SUBMITTED', 'Contractor applied', req.user._id);
+
+        res.status(201).json({ success: true, application });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/jobs/:id/start', protect, restrictTo('CONTRACTOR'), async (req, res) => {
+    try {
+        const job = await Job.findById(req.params.id);
+        if (job.contractorId.toString() !== req.user._id.toString()) return res.status(403).json({ error: 'Not your job' });
+
+        job.status = 'IN_PROGRESS';
         await job.save();
-        
-        res.json({
-            success: true,
-            evidence
-        });
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+
+        // Update Actual Start in Timeline
+        await JobTimeline.findOneAndUpdate({ jobId: job._id }, { actualStart: new Date() });
+        await updateTimeline(job._id, 'STARTED', 'Work started', req.user._id);
+
+        res.json({ success: true, job });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
-// ==================== PROFILE ROUTES ====================
-// Get profile
-app.get('/api/profile', auth, async (req, res) => {
+app.post('/api/jobs/:id/upload-proof', protect, uploadService.middleware, async (req, res) => {
     try {
-        res.json({
-            success: true,
-            profile: req.user.profile
+        if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+        const url = await uploadService.uploadToFirebase(req.file);
+        const type = req.body.type || 'PHOTO_DURING';
+
+        const doc = await JobDocument.create({
+            jobId: req.params.id,
+            uploaderId: req.user._id,
+            type: type,
+            filename: req.file.originalname,
+            url
         });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+
+        await updateTimeline(req.params.id, 'PROOF_UPLOAD', `Proof ${type} uploaded`, req.user._id, { docId: doc._id });
+
+        res.json({ success: true, document: doc });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
-// Update profile
-app.put('/api/profile', auth, async (req, res) => {
+app.post('/api/jobs/:id/mark-complete', protect, restrictTo('CONTRACTOR'), async (req, res) => {
     try {
-        const ProfileModel = req.user.role === 'agent' ? AgentProfile : ContractorProfile;
-        
-        const updatedProfile = await ProfileModel.findByIdAndUpdate(
-            req.user.profile._id,
-            { $set: req.body },
-            { new: true, runValidators: true }
-        );
-        
-        res.json({
-            success: true,
-            profile: updatedProfile
-        });
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+        const job = await Job.findById(req.params.id);
+        if (job.contractorId.toString() !== req.user._id.toString()) return res.status(403).json({ error: 'Not your job' });
+
+        job.status = 'COMPLETION_SUBMITTED';
+        job.progressPercent = 100;
+        await job.save();
+
+        await updateTimeline(job._id, 'COMPLETION_SUBMITTED', 'Work marked complete', req.user._id);
+
+        res.json({ success: true, job });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
-// ==================== SEARCH ROUTES ====================
-// Search contractors
-app.get('/api/search/contractors', auth, async (req, res) => {
+app.post('/api/jobs/:id/submit-invoice', protect, restrictTo('CONTRACTOR'), async (req, res) => {
     try {
-        const { query, location, skills, rating, page = 1, limit = 10 } = req.query;
-        
-        const searchQuery = {};
-        
-        if (query) {
-            searchQuery.$or = [
-                { companyName: { $regex: query, $options: 'i' } },
-                { contactName: { $regex: query, $options: 'i' } },
-                { skills: { $regex: query, $options: 'i' } }
-            ];
-        }
-        
-        if (location) {
-            searchQuery.location = { $regex: location, $options: 'i' };
-        }
-        
-        if (skills) {
-            const skillArray = skills.split(',');
-            searchQuery.skills = { $in: skillArray };
-        }
-        
-        if (rating) {
-            searchQuery.rating = { $gte: parseFloat(rating) };
-        }
-        
-        const contractors = await ContractorProfile.find(searchQuery)
-            .sort('-rating')
-            .skip((page - 1) * limit)
-            .limit(parseInt(limit));
-            
-        const total = await ContractorProfile.countDocuments(searchQuery);
-        
-        res.json({
-            success: true,
-            contractors,
-            total,
-            pages: Math.ceil(total / limit),
-            currentPage: parseInt(page)
-        });
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+        const job = await Job.findById(req.params.id);
+        if (job.contractorId.toString() !== req.user._id.toString()) return res.status(403).json({ error: 'Not your job' });
+
+        job.status = 'INVOICED';
+        await job.save();
+
+        await updateTimeline(job._id, 'INVOICE_SUBMITTED', 'Invoice submitted', req.user._id);
+
+        res.json({ success: true, job });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
-// ==================== ANALYTICS ROUTES ====================
-app.get('/api/analytics/agent', auth, async (req, res) => {
+// --- 5.4 Timeline & Monitoring ---
+app.get('/api/jobs/:id/timeline', protect, async (req, res) => {
     try {
-        if (req.user.role !== 'agent') {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-        
-        const jobs = await Job.find({ client: req.user.profile._id });
-        
-        const stats = {
-            totalJobs: jobs.length,
-            activeJobs: jobs.filter(j => j.status === 'in_progress').length,
-            completedJobs: jobs.filter(j => j.status === 'completed').length,
-            atRiskJobs: jobs.filter(j => {
-                if (!j.slaEndDate) return false;
-                const hoursLeft = (new Date(j.slaEndDate) - new Date()) / (1000 * 60 * 60);
-                return hoursLeft < 24 && j.status === 'in_progress';
-            }).length,
-            slaCompliance: 94, // Calculated value
-            budgetManaged: jobs.reduce((sum, job) => sum + (job.budget || 0), 0),
-            applicationsProcessed: await JobApplication.countDocuments({
-                job: { $in: jobs.map(j => j._id) }
-            })
-        };
-        
-        res.json({
-            success: true,
-            stats
-        });
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+        const timeline = await JobTimeline.findOne({ jobId: req.params.id }).populate('events.actorId', 'name role');
+        res.json({ success: true, timeline });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
-// ==================== DASHBOARD ROUTES ====================
-app.get('/api/dashboard/agent', auth, async (req, res) => {
-    try {
-        if (req.user.role !== 'agent') {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-        
-        const jobs = await Job.find({ client: req.user.profile._id })
-            .sort('-createdAt')
-            .limit(5)
-            .populate('contractor', 'companyName')
-            .populate('applications');
-            
-        const applications = await JobApplication.countDocuments({
-            status: 'pending',
-            job: { $in: jobs.map(j => j._id) }
-        });
-        
-        const atRiskJobs = jobs.filter(j => {
-            if (!j.slaEndDate) return false;
-            const hoursLeft = (new Date(j.slaEndDate) - new Date()) / (1000 * 60 * 60);
-            return hoursLeft < 24 && j.status === 'in_progress';
-        });
-        
-        res.json({
-            success: true,
-            dashboard: {
-                kpis: {
-                    activeJobs: jobs.filter(j => j.status === 'in_progress').length,
-                    pendingApplications: applications,
-                    atRiskJobs: atRiskJobs.length,
-                    slaCompliance: 94
-                },
-                recentJobs: jobs,
-                notifications: [
-                    {
-                        id: 1,
-                        title: 'SLA Alert',
-                        message: 'JOB-0428 is at risk. Review timeline.',
-                        type: 'warning'
-                    }
-                ]
-            }
-        });
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// ==================== UTILITY ROUTES ====================
-// Health check
-app.get('/api/health', (req, res) => {
-    res.json({
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime()
-    });
-});
-
-// Seed data (for testing)
-app.post('/api/seed', async (req, res) => {
-    try {
-        // Clear existing data
-        await Promise.all([
-            User.deleteMany({}),
-            AgentProfile.deleteMany({}),
-            ContractorProfile.deleteMany({}),
-            Job.deleteMany({}),
-            JobApplication.deleteMany({})
-        ]);
-        
-        // Create sample contractor
-        const contractor = new ContractorProfile({
-            companyName: 'Elite Electrical Solutions',
-            contactName: 'Alex Mendez',
-            email: 'alex@eliteelectricals.com',
-            phone: '+91 9876543210',
-            location: 'Chennai, TN',
-            skills: ['Electrical', 'Industrial', 'Safety', 'Panel Upgrades'],
-            experience: '12 years',
-            rating: 4.8,
-            reviews: 142,
-            jobsCompleted: 156,
-            slaSuccess: 98,
-            isVerified: true
-        });
-        await contractor.save();
-        
-        res.json({ success: true, message: 'Database seeded' });
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// ==================== START SERVER ====================
+// Start Server
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    
-    // Create uploads directory if it doesn't exist
-    const fs = require('fs');
-    if (!fs.existsSync('uploads')) {
-        fs.mkdirSync('uploads');
-        console.log('📁 Created uploads directory');
-    }
+    console.log(`🚀 VentureOps Server running on port ${PORT}`);
+    connectDB();
 });
+
+module.exports = app;

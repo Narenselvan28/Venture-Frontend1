@@ -1,552 +1,553 @@
-// pages/AgentHome.jsx
-import React, { useState, useEffect } from "react";
-import { useNavigate } from 'react-router-dom';
+// pages/AgentJobs.jsx (or AgentHome.jsx based on your error)
+import React, { useState, useEffect } from 'react';
+import api from '../../services/api';
 import {
-  Briefcase,
-  FileCheck,
-  DollarSign,
-  MessageSquare,
-  AlertTriangle,
-  ArrowUpRight,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Users,
-  TrendingUp,
-  Shield,
-  Zap,
-  ChevronRight,
-  Download,
-  Eye,
-  Filter,
+  Search,
   Calendar,
+  Clock,
+  AlertTriangle,
+  CheckCircle,
+  ChevronRight,
+  ChevronLeft,
+  Eye,
   MapPin,
-  Star,
-} from "lucide-react";
-import api from "../../services/api";
+  DollarSign,
+  Plus,
+  Loader2,
+  BarChart3,
+  FileText,
+  ChevronDown,
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import CreateJobModal from './CreateJobModal';
+import JobDetailsModal from './JobDetailsModal';
 
-const AgentHome = () => {
+const AgentJobs = () => {
   const navigate = useNavigate();
-  const [activeTimeFilter, setActiveTimeFilter] = useState('week');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [sortBy, setSortBy] = useState('latest');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
 
-  // Recent jobs/invoices data
-  const recentJobs = [
-    {
-      id: "JOB-0428",
-      title: "Electrical Panel Upgrade",
-      client: "Global Logistics Corp",
-      contractor: "Elite Engineering",
-      status: "pending", // pending, completed, in_progress
-      amount: "$2,240",
-      time: "2h ago",
-      location: "Chennai",
-      priority: "high"
-    },
-    {
-      id: "JOB-0427",
-      title: "HVAC System Installation",
-      client: "Tech Solutions Inc",
-      contractor: "Alpha Builders",
-      status: "completed",
-      amount: "$1,250",
-      time: "1d ago",
-      location: "Bangalore",
-      priority: "medium"
-    },
-    {
-      id: "JOB-0426",
-      title: "Plumbing System Overhaul",
-      client: "MediCare Hospital",
-      contractor: "Swift Services",
-      status: "in_progress",
-      amount: "$3,200",
-      time: "3h ago",
-      location: "Mumbai",
-      priority: "high"
-    },
-    {
-      id: "JOB-0425",
-      title: "Network Cable Installation",
-      client: "Retail Chain Corp",
-      contractor: "Prime Contractors",
-      status: "pending",
-      amount: "$1,750",
-      time: "5h ago",
-      location: "Delhi",
-      priority: "low"
-    },
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [stats, setStats] = useState({
+    total: 0,
+    ongoing: 0,
+    completed: 0,
+    atRisk: 0,
+    delayed: 0
+  });
+
+  const fetchJobs = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Build query parameters
+      const params = {
+        page: currentPage,
+        limit: 10,
+        sortBy,
+        search: searchQuery || undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        priority: priorityFilter !== 'all' ? priorityFilter : undefined,
+        filter: activeFilter !== 'all' ? activeFilter : undefined
+      };
+
+      // Remove undefined params
+      Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
+
+      const response = await api.get('/agent/jobs', { params });
+      const { jobs: fetchedJobs, stats: fetchedStats } = response.data;
+
+      setJobs(fetchedJobs);
+      setStats(fetchedStats);
+
+    } catch (error) {
+      console.error("Error fetching agent jobs:", error);
+      setError("Failed to load jobs. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchJobs();
+  }, [currentPage, sortBy, statusFilter, priorityFilter, activeFilter]);
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery !== '') {
+        fetchJobs();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(stats.total / itemsPerPage);
+
+  const filters = [
+    { id: 'all', label: 'All Jobs', count: stats.total },
+    { id: 'ongoing', label: 'Ongoing', count: stats.ongoing },
+    { id: 'completed', label: 'Completed', count: stats.completed },
+    { id: 'at_risk', label: 'At Risk', count: stats.atRisk },
+    { id: 'delayed', label: 'Delayed', count: stats.delayed },
   ];
 
-  // Agent performance data
-  const agentPerformance = [
-    {
-      name: "Morrisey",
-      score: 9.2,
-      role: "Senior Agent",
-      completedJobs: 142,
-      rating: 4.9,
-      trend: "+12%"
-    },
-    {
-      name: "Ferdinand",
-      score: 7.5,
-      role: "Field Agent",
-      completedJobs: 89,
-      rating: 4.7,
-      trend: "+5%"
-    },
-    {
-      name: "Andrew",
-      score: 4.8,
-      role: "Junior Agent",
-      completedJobs: 34,
-      rating: 4.2,
-      trend: "-3%"
-    },
+  const statusOptions = [
+    { value: 'all', label: 'All Statuses' },
+    { value: 'DRAFT', label: 'Draft' },
+    { value: 'PUBLISHED', label: 'Published' },
+    { value: 'BIDDING', label: 'Bidding' },
+    { value: 'ASSIGNED', label: 'Assigned' },
+    { value: 'IN_PROGRESS', label: 'In Progress' },
+    { value: 'COMPLETED', label: 'Completed' },
+    { value: 'CLOSED', label: 'Closed' },
+    { value: 'CANCELLED', label: 'Cancelled' },
   ];
 
-  // Metrics data with improved design
-  const metrics = [
-    {
-      label: "Active Jobs",
-      value: "28",
-      icon: <Briefcase size={22} />,
-      color: "from-blue-500 to-blue-600",
-      bgColor: "bg-gradient-to-br from-blue-50 to-blue-100",
-      trend: "+8%",
-      description: "Currently ongoing"
-    },
-    {
-      label: "Applications",
-      value: "45",
-      icon: <FileCheck size={22} />,
-      color: "from-green-500 to-emerald-600",
-      bgColor: "bg-gradient-to-br from-green-50 to-emerald-100",
-      trend: "+15%",
-      description: "Pending review"
-    },
-    {
-      label: "Revenue (MTD)",
-      value: "$24.8K",
-      icon: <DollarSign size={22} />,
-      color: "from-purple-500 to-indigo-600",
-      bgColor: "bg-gradient-to-br from-purple-50 to-indigo-100",
-      trend: "+4%",
-      description: "Monthly target"
-    },
-    {
-      label: "SLA Status",
-      value: "94%",
-      icon: <Shield size={22} />,
-      color: "from-amber-500 to-orange-600",
-      bgColor: "bg-gradient-to-br from-amber-50 to-orange-100",
-      trend: "+2%",
-      description: "On-time completion"
-    },
+  const priorityOptions = [
+    { value: 'all', label: 'All Priorities' },
+    { value: 'CRITICAL', label: 'Critical' },
+    { value: 'HIGH', label: 'High' },
+    { value: 'MEDIUM', label: 'Medium' },
+    { value: 'LOW', label: 'Low' },
   ];
 
-  // Time filters
-  const timeFilters = [
-    { id: 'today', label: 'Today' },
-    { id: 'week', label: 'This Week' },
-    { id: 'month', label: 'This Month' },
-    { id: 'quarter', label: 'Quarter' },
+  const sortOptions = [
+    { value: 'latest', label: 'Latest First' },
+    { value: 'oldest', label: 'Oldest First' },
+    { value: 'priority', label: 'Priority' },
+    { value: 'budget', label: 'Budget' },
+    { value: 'deadline', label: 'Deadline' },
   ];
 
   const getStatusColor = (status) => {
-    switch (status) {
-      case "completed": return "bg-green-100 text-green-700 border-green-200";
-      case "in_progress": return "bg-blue-100 text-blue-700 border-blue-200";
-      case "pending": return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      default: return "bg-gray-100 text-gray-700";
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case "completed": return <CheckCircle size={14} />;
-      case "in_progress": return <Clock size={14} />;
-      case "pending": return <AlertTriangle size={14} />;
-      default: return null;
-    }
+    const colors = {
+      DRAFT: 'bg-gray-100 text-gray-700 border-gray-200',
+      PUBLISHED: 'bg-blue-50 text-blue-700 border-blue-200',
+      BIDDING: 'bg-purple-50 text-purple-700 border-purple-200',
+      ASSIGNED: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+      IN_PROGRESS: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+      COMPLETED: 'bg-green-50 text-green-700 border-green-200',
+      CLOSED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      CANCELLED: 'bg-red-50 text-red-700 border-red-200',
+      COMPLETION_SUBMITTED: 'bg-teal-50 text-teal-700 border-teal-200',
+      VERIFIED: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+      INVOICED: 'bg-violet-50 text-violet-700 border-violet-200',
+    };
+    return colors[status] || 'bg-gray-100 text-gray-700 border-gray-200';
   };
 
   const getPriorityColor = (priority) => {
-    switch (priority) {
-      case "high": return "bg-red-500";
-      case "medium": return "bg-yellow-500";
-      case "low": return "bg-green-500";
-      default: return "bg-gray-500";
-    }
+    const colors = {
+      CRITICAL: 'bg-purple-500',
+      HIGH: 'bg-red-500',
+      MEDIUM: 'bg-yellow-500',
+      LOW: 'bg-green-500',
+    };
+    return colors[priority] || 'bg-gray-500';
   };
 
-  const getScoreColor = (score) => {
-    if (score < 5) return "bg-gradient-to-r from-red-500 to-red-600";
-    if (score > 8) return "bg-gradient-to-r from-green-500 to-emerald-600";
-    return "bg-gradient-to-r from-amber-500 to-orange-500";
+  const getPriorityTextColor = (priority) => {
+    const colors = {
+      CRITICAL: 'text-purple-600',
+      HIGH: 'text-red-600',
+      MEDIUM: 'text-yellow-600',
+      LOW: 'text-green-600',
+    };
+    return colors[priority] || 'text-gray-600';
   };
 
-  const getScoreTextColor = (score) => {
-    if (score < 5) return "text-red-600";
-    if (score > 8) return "text-green-600";
-    return "text-amber-600";
+
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  const handleViewDetails = (job) => {
+    setSelectedJob(job);
+    setIsDetailsModalOpen(true);
+  };
+
+  const handleCreateJob = () => {
+    setIsCreateModalOpen(true);
+  };
+
+  const handleCloseDetails = () => {
+    setIsDetailsModalOpen(false);
+    setSelectedJob(null);
+  };
+
+  const handleJobCreated = () => {
+    setIsCreateModalOpen(false);
+    fetchJobs();
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30 font-sans pb-20 md:pb-6">
+    <div className="min-h-screen bg-gray-50 font-sans">
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Welcome & Time Filter Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Welcome back, Povendran</h1>
-            <p className="text-gray-600 mt-1">Here's what's happening with your jobs today</p>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            <div className="flex bg-white border border-gray-200 rounded-xl p-1">
-              {timeFilters.map((filter) => (
-                <button
-                  key={filter.id}
-                  onClick={() => setActiveTimeFilter(filter.id)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTimeFilter === filter.id
-                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-100'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
-                >
-                  {filter.label}
-                </button>
-              ))}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header Section */}
+        <div className="mb-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Jobs Dashboard</h1>
+              <p className="text-gray-600 mt-2">Manage and monitor all your jobs in one place</p>
             </div>
-            <button className="p-2.5 bg-white border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-50">
-              <Filter size={18} />
+
+            <button
+              onClick={handleCreateJob}
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-lg font-semibold shadow-sm hover:shadow transition-all duration-200"
+            >
+              <Plus size={20} />
+              <span>Create New Job</span>
             </button>
           </div>
-        </div>
 
-        {/* Metrics Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {metrics.map((metric, index) => (
-            <div
-              key={index}
-              className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className={`p-3 rounded-xl ${metric.bgColor}`}>
-                  <div className={`text-white bg-gradient-to-br ${metric.color} p-2 rounded-lg`}>
-                    {metric.icon}
-                  </div>
+          {/* Stats Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500 font-medium">Total Jobs</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
                 </div>
-                <div className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-full">
-                  <ArrowUpRight size={14} className="text-green-500" />
-                  <span className="text-xs font-bold text-green-600">{metric.trend}</span>
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <BarChart3 className="text-blue-600" size={20} />
                 </div>
-              </div>
-
-              <div>
-                <h3 className="text-2xl font-bold text-gray-900">{metric.value}</h3>
-                <p className="text-sm font-medium text-gray-900 mt-1">{metric.label}</p>
-                <p className="text-xs text-gray-500 mt-1">{metric.description}</p>
               </div>
             </div>
-          ))}
-        </div>
 
-        {/* Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Recent Jobs Column */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="p-5 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-gray-50 to-white">
+            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    <Briefcase size={20} className="text-blue-600" />
-                    Recent Jobs
-                  </h2>
-                  <p className="text-sm text-gray-500 mt-1">Need help? <span className="text-blue-600 font-medium">Create Job</span></p>
+                  <p className="text-sm text-gray-500 font-medium">Ongoing</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{stats.ongoing}</p>
                 </div>
-                <button
-                  onClick={() => navigate('/agent/jobs')}
-                  className="text-blue-600 text-sm font-semibold hover:text-blue-700 flex items-center gap-1"
-                >
-                  View all <ChevronRight size={16} />
-                </button>
+                <div className="p-3 bg-yellow-50 rounded-lg">
+                  <Clock className="text-yellow-600" size={20} />
+                </div>
               </div>
+            </div>
 
-              <div className="divide-y divide-gray-100">
-                {recentJobs.map((job) => (
-                  <div key={job.id} className="p-5 hover:bg-gray-50/50 transition-colors group">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <span className="font-mono text-sm font-bold text-gray-400">#{job.id}</span>
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 ${getStatusColor(job.status)}`}>
-                            {getStatusIcon(job.status)}
-                            {job.status === 'in_progress' ? 'IN PROGRESS' : job.status.toUpperCase()}
-                          </span>
-                          <div className="flex items-center">
-                            <div className={`w-2 h-2 rounded-full mr-1 ${getPriorityColor(job.priority)}`}></div>
-                            <span className="text-xs text-gray-500">{job.priority} priority</span>
-                          </div>
-                        </div>
-
-                        <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
-                          {job.title}
-                        </h3>
-
-                        <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-gray-600">
-                          <div className="flex items-center gap-1">
-                            <Users size={14} className="text-gray-400" />
-                            <span className="font-medium">{job.client}</span>
-                            <span className="text-gray-400 mx-1">→</span>
-                            <span>{job.contractor}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <MapPin size={14} className="text-gray-400" />
-                            <span>{job.location}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="text-right">
-                        <div className="text-xl font-bold text-gray-900">{job.amount}</div>
-                        <div className="text-xs text-gray-500 mt-1">{job.time}</div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                      <div className="flex items-center gap-2">
-                        <Calendar size={14} className="text-gray-400" />
-                        <span className="text-xs text-gray-500">SLA: 48 hours</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 text-sm font-medium rounded-lg transition-colors">
-                          View Details
-                        </button>
-                        <button className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
-                          <Eye size={16} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500 font-medium">Completed</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{stats.completed}</p>
+                </div>
+                <div className="p-3 bg-green-50 rounded-lg">
+                  <CheckCircle className="text-green-600" size={20} />
+                </div>
               </div>
+            </div>
 
-              {/* Stats Summary */}
-              <div className="p-5 bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-gray-200">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900">22,240</div>
-                    <div className="text-xs text-gray-600">Total Value</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900">4</div>
-                    <div className="text-xs text-gray-600">Active Jobs</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900">94%</div>
-                    <div className="text-xs text-gray-600">On Track</div>
-                  </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500 font-medium">At Risk</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{stats.atRisk}</p>
+                </div>
+                <div className="p-3 bg-red-50 rounded-lg">
+                  <AlertTriangle className="text-red-600" size={20} />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Agent Performance Column */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <TrendingUp size={20} className="text-blue-600" />
-                Agent Performance
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">Scores out of 10, updated weekly</p>
+          {/* Search and Filters */}
+          <div className="mb-8">
+            <div className="flex flex-col lg:flex-row gap-4 mb-6">
+              <div className="flex-1 relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="Search jobs by title, ID, or description..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all"
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <div className="relative">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="appearance-none pl-4 pr-10 py-3 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  >
+                    {statusOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                </div>
+
+                <div className="relative">
+                  <select
+                    value={priorityFilter}
+                    onChange={(e) => setPriorityFilter(e.target.value)}
+                    className="appearance-none pl-4 pr-10 py-3 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  >
+                    {priorityOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                </div>
+
+                <div className="relative">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="appearance-none pl-4 pr-10 py-3 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  >
+                    {sortOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                </div>
+              </div>
             </div>
 
-            <div className="p-5 space-y-5">
-              {agentPerformance.map((agent, index) => (
-                <div key={index} className="p-4 border border-gray-200 rounded-xl hover:border-blue-200 transition-colors">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center">
-                      <div className={`w-12 h-12 rounded-xl ${getScoreColor(agent.score)} flex items-center justify-center shadow-sm`}>
-                        <span className="text-white font-bold text-lg">{agent.score.toFixed(1)}</span>
-                      </div>
-                      <div className="ml-4">
-                        <h4 className="font-bold text-gray-900">{agent.name}</h4>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-gray-500">{agent.role}</span>
-                          <div className="flex items-center">
-                            <Star size={12} className="text-amber-500 fill-amber-500" />
-                            <span className="text-xs font-medium ml-1">{agent.rating}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className={`text-sm font-bold flex items-center gap-1 ${agent.trend.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                      <ArrowUpRight size={14} />
-                      {agent.trend}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Completed Jobs</span>
-                      <span className="font-semibold text-gray-900">{agent.completedJobs}</span>
-                    </div>
-                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full ${getScoreColor(agent.score)}`}
-                        style={{ width: `${(agent.score / 10) * 100}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
+            {/* Filter Tabs */}
+            <div className="flex flex-wrap gap-2">
+              {filters.map((filter) => (
+                <button
+                  key={filter.id}
+                  onClick={() => setActiveFilter(filter.id)}
+                  className={`px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 ${activeFilter === filter.id
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+                    }`}
+                >
+                  <span>{filter.label}</span>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded ${activeFilter === filter.id ? 'bg-white/20' : 'bg-gray-100'}`}>
+                    {filter.count}
+                  </span>
+                </button>
               ))}
             </div>
-
-            {/* Performance Legend */}
-            <div className="p-5 border-t border-gray-200 bg-gray-50">
-              <h4 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
-                <AlertTriangle size={16} className="text-amber-500" />
-                Performance Scale
-              </h4>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="text-center p-2 bg-red-50 rounded-lg border border-red-100">
-                  <div className="w-3 h-3 bg-red-500 rounded-full mx-auto mb-1"></div>
-                  <span className="text-xs font-bold text-red-700">{"< 5.0"}</span>
-                  <p className="text-xs text-gray-600 mt-1">Needs Review</p>
-                </div>
-                <div className="text-center p-2 bg-amber-50 rounded-lg border border-amber-100">
-                  <div className="w-3 h-3 bg-amber-500 rounded-full mx-auto mb-1"></div>
-                  <span className="text-xs font-bold text-amber-700">5.0-8.0</span>
-                  <p className="text-xs text-gray-600 mt-1">Meeting</p>
-                </div>
-                <div className="text-center p-2 bg-green-50 rounded-lg border border-green-100">
-                  <div className="w-3 h-3 bg-green-500 rounded-full mx-auto mb-1"></div>
-                  <span className="text-xs font-bold text-green-700">{"> 8.0"}</span>
-                  <p className="text-xs text-gray-600 mt-1">Exceeding</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Row - Analytics & Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* System Health */}
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-5">
-            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <Zap size={20} className="text-blue-600" />
-              System Health
-            </h3>
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <div className="text-3xl font-bold text-gray-900">25°C</div>
-                <div className="text-sm text-green-600 bg-green-100 px-2 py-0.5 rounded-full inline-flex items-center gap-1 mt-2">
-                  <CheckCircle size={12} />
-                  Optimal Performance
-                </div>
-              </div>
-              <div className="text-5xl">📊</div>
-            </div>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-700">System Uptime</span>
-                <span className="text-sm font-bold text-gray-900">99.8%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-700">Response Time</span>
-                <span className="text-sm font-bold text-gray-900">42ms</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-700">Active Sessions</span>
-                <span className="text-sm font-bold text-gray-900">142</span>
-              </div>
-            </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-5">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => navigate('/agent/jobs?create=true')}
-                className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl hover:border-blue-300 transition-colors group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white rounded-lg border border-blue-100">
-                    <Briefcase size={20} className="text-blue-600" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-900 group-hover:text-blue-600">Create Job</span>
+          {/* Jobs List */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="animate-spin text-blue-600" size={32} />
+              </div>
+            ) : error ? (
+              <div className="text-center py-20">
+                <AlertTriangle className="mx-auto text-red-500 mb-4" size={48} />
+                <p className="text-gray-600 mb-4">{error}</p>
+                <button
+                  onClick={fetchJobs}
+                  className="text-blue-600 font-semibold hover:text-blue-700"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : jobs.length === 0 ? (
+              <div className="text-center py-20">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FileText className="text-gray-400" size={24} />
                 </div>
-              </button>
-              <button
-                onClick={() => navigate('/agent/applications')}
-                className="p-4 bg-gradient-to-br from-green-50 to-emerald-100 border border-green-200 rounded-xl hover:border-green-300 transition-colors group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white rounded-lg border border-green-100">
-                    <FileCheck size={20} className="text-green-600" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-900 group-hover:text-green-600">View Applications</span>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No jobs found</h3>
+                <p className="text-gray-600 mb-6">
+                  {searchQuery || statusFilter !== 'all' || priorityFilter !== 'all'
+                    ? 'Try adjusting your search or filters'
+                    : 'Get started by creating your first job'}
+                </p>
+                <button
+                  onClick={handleCreateJob}
+                  className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                >
+                  <Plus size={20} />
+                  Create New Job
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Table Header */}
+                <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-4 bg-gray-50 border-b border-gray-200 text-sm font-semibold text-gray-600">
+                  <div className="col-span-4">Job Details</div>
+                  <div className="col-span-2">Status</div>
+                  <div className="col-span-2">Priority</div>
+                  <div className="col-span-2">Budget</div>
+                  <div className="col-span-2">Actions</div>
                 </div>
-              </button>
-              <button className="p-4 bg-gradient-to-br from-purple-50 to-indigo-100 border border-purple-200 rounded-xl hover:border-purple-300 transition-colors group">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white rounded-lg border border-purple-100">
-                    <Download size={20} className="text-purple-600" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-900 group-hover:text-purple-600">Export Report</span>
-                </div>
-              </button>
-              <button
-                onClick={() => navigate('/agent/search')}
-                className="p-4 bg-gradient-to-br from-amber-50 to-orange-100 border border-amber-200 rounded-xl hover:border-amber-300 transition-colors group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white rounded-lg border border-amber-100">
-                    <Users size={20} className="text-amber-600" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-900 group-hover:text-amber-600">Find Contractor</span>
-                </div>
-              </button>
-            </div>
-          </div>
 
-          {/* Transparency & Compliance */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-5">
-            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <Shield size={20} className="text-gray-700" />
-              Compliance Status
-            </h3>
-            <div className="space-y-4">
-              <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-900">Data Security</span>
-                  <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">100%</span>
+                {/* Jobs List */}
+                <div className="divide-y divide-gray-100">
+                  {jobs.map((job) => (
+                    <div key={job._id} className="p-6 hover:bg-gray-50 transition-colors">
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                        {/* Job Details */}
+                        <div className="md:col-span-4">
+                          <div className="flex items-start gap-4">
+                            <div className={`p-3 rounded-lg ${getStatusColor(job.status).split(' ')[0]} bg-opacity-10`}>
+                              <FileText className={getStatusColor(job.status).split(' ')[1]} size={20} />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-gray-900">{job.title}</h3>
+                              <div className="flex items-center gap-2 mt-2">
+                                <span className="text-sm font-mono text-gray-500">#{job.jobCode}</span>
+                                {job.location && (
+                                  <div className="flex items-center gap-1 text-sm text-gray-500">
+                                    <MapPin size={14} />
+                                    <span>{job.location.city || 'Remote'}</span>
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-1 text-sm text-gray-500">
+                                  <Calendar size={14} />
+                                  <span>{formatDate(job.createdAt)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Status */}
+                        <div className="md:col-span-2">
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(job.status)}`}>
+                            {job.status.replace('_', ' ')}
+                          </span>
+                        </div>
+
+                        {/* Priority */}
+                        <div className="md:col-span-2">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${getPriorityColor(job.priority)}`} />
+                            <span className={`text-sm font-medium ${getPriorityTextColor(job.priority)}`}>
+                              {job.priority}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Budget */}
+                        <div className="md:col-span-2">
+                          <div className="flex items-center gap-2">
+                            <DollarSign className="text-gray-400" size={16} />
+                            <span className="font-semibold text-gray-900">{formatCurrency(job.budget)}</span>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="md:col-span-2">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleViewDetails(job)}
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg font-medium transition-colors"
+                            >
+                              <Eye size={16} />
+                              <span className="hidden sm:inline">View</span>
+                            </button>
+                            <button
+                              onClick={() => navigate(`/agent/jobs/${job._id}`)}
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+                            >
+                              <ChevronRight size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <p className="text-xs text-gray-600">End-to-end encryption enabled</p>
-              </div>
-              <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-900">Audit Trail</span>
-                  <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">Active</span>
-                </div>
-                <p className="text-xs text-gray-600">Full transparency logging</p>
-              </div>
-              <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-900">GDPR Compliance</span>
-                  <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">Certified</span>
-                </div>
-                <p className="text-xs text-gray-600">Fully compliant with regulations</p>
-              </div>
-            </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="px-6 py-4 border-t border-gray-200">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div className="text-sm text-gray-600">
+                        Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, stats.total)} of {stats.total} jobs
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                          disabled={currentPage === 1}
+                          className={`p-2 rounded-lg ${currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
+                        >
+                          <ChevronLeft size={20} />
+                        </button>
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          const pageNum = i + 1;
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setCurrentPage(pageNum)}
+                              className={`w-10 h-10 rounded-lg font-medium ${currentPage === pageNum
+                                ? 'bg-blue-600 text-white'
+                                : 'text-gray-600 hover:bg-gray-100'
+                                }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                        {totalPages > 5 && <span className="px-2">...</span>}
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                          disabled={currentPage === totalPages}
+                          className={`p-2 rounded-lg ${currentPage === totalPages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
+                        >
+                          <ChevronRight size={20} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       </main>
+
+      {/* Create Job Modal */}
+      <CreateJobModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onJobCreated={handleJobCreated}
+      />
+
+      {/* Job Details Modal */}
+      <JobDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={handleCloseDetails}
+        job={selectedJob}
+      />
     </div>
   );
 };
 
-export default AgentHome;
+export default AgentJobs;

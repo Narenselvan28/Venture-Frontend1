@@ -4,15 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import {
   Search, Filter, MapPin, Clock, DollarSign,
-  TrendingUp, Star, Heart, Eye, Users,
-  Briefcase, Building, User, CheckCircle,
-  AlertCircle, Flame, Zap, Target, Award,
-  Calendar, FileText, ExternalLink, Download,
-  ChevronDown, ChevronUp, Bookmark, Share2,
-  BarChart, PieChart, Bell, MessageSquare,
-  Phone, Mail, Navigation, Shield, Lock,
-  ChevronRight, ChevronLeft, X, Plus,
-  ClockAlert, History, TrendingDown, Hash
+  Star, Heart, Eye, Users, Briefcase,
+  Building, User, CheckCircle, AlertCircle,
+  Flame, Zap, Calendar, FileText, X,
+  ChevronRight
 } from 'lucide-react';
 
 const ContractorJobFeed = () => {
@@ -21,12 +16,12 @@ const ContractorJobFeed = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedJob, setSelectedJob] = useState(null);
-  const [showFilters, setShowFilters] = useState(true);
   const [showApplyModal, setShowApplyModal] = useState(false);
-  const [showJobDetails, setShowJobDetails] = useState(false);
   const [savedJobs, setSavedJobs] = useState([]);
   const [appliedJobs, setAppliedJobs] = useState([]);
   const [jobListings, setJobListings] = useState([]);
+  const [showFilters, setShowFilters] = useState(true);
+
   // Filters State
   const [filters, setFilters] = useState({
     skills: [],
@@ -34,8 +29,6 @@ const ContractorJobFeed = () => {
     category: '',
     budgetMin: '',
     budgetMax: '',
-    slaUrgency: '',
-    jobType: '',
     sortBy: 'latest'
   });
 
@@ -43,11 +36,29 @@ const ContractorJobFeed = () => {
     const fetchJobs = async () => {
       try {
         setLoading(true);
-        const res = await api.get('/contractor/jobs/feed');
-        if (res.data) {
-          setJobListings(res.data.jobs || []);
-          setSavedJobs(res.data.savedJobs || []);
-          setAppliedJobs(res.data.appliedJobs || []);
+        const res = await api.get('/jobs');
+        if (res.data?.jobs) {
+          const formattedJobs = res.data.jobs
+            .filter(job => job.status === 'PUBLISHED' || job.status === 'OPEN')
+            .map(job => ({
+              ...job,
+              id: job._id,
+              slaStatus: (job.riskState || 'ON_TRACK').toLowerCase().replace('_', '-'),
+              matchScore: Math.floor(Math.random() * 20) + 80,
+              urgent: job.priority === 'CRITICAL' || job.priority === 'HIGH',
+              views: Math.floor(Math.random() * 100),
+              applications: Math.floor(Math.random() * 10),
+              slaHours: 48,
+              company: job.agentId?.companyName || 'Unknown Company',
+              agent: job.agentId?.name || 'Unknown Agent',
+              agentRating: 4.8,
+              posted: new Date(job.createdAt).toLocaleDateString('en-IN', { 
+                day: 'numeric', 
+                month: 'short' 
+              })
+            }));
+
+          setJobListings(formattedJobs);
         }
       } catch (error) {
         console.error("Error fetching job feed:", error);
@@ -58,45 +69,36 @@ const ContractorJobFeed = () => {
     fetchJobs();
   }, []);
 
+  // Categories & Skills
+  const categories = ['Electrical', 'HVAC', 'Plumbing', 'Safety'];
+  const skills = ['Panel Installation', 'Wiring', 'Circuit Design', 'HVAC Installation'];
 
-  // Categories
-  const categories = [
-    'Electrical', 'HVAC', 'Plumbing', 'Safety',
-    'Industrial', 'Commercial', 'Residential', 'Data Center'
-  ];
-
-  // Skills
-  const skills = [
-    'Panel Installation', 'Wiring', 'Circuit Design', 'HVAC Installation',
-    'VRF Systems', 'Plumbing', 'Fire Safety', 'UPS Installation',
-    'Generator', 'Lighting', 'Automation', 'Solar'
-  ];
-
+  // Helper functions
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'on-track': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-      case 'at-risk': return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'critical': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+    const colors = {
+      'on-track': 'bg-emerald-100 text-emerald-800 border-emerald-200',
+      'at-risk': 'bg-amber-100 text-amber-800 border-amber-200',
+      'critical': 'bg-red-100 text-red-800 border-red-200'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
   const getStatusIcon = (status) => {
-    switch (status) {
-      case 'on-track': return <CheckCircle size={12} />;
-      case 'at-risk': return <AlertCircle size={12} />;
-      case 'critical': return <ClockAlert size={12} />;
-      default: return <Clock size={12} />;
-    }
+    const icons = {
+      'on-track': <CheckCircle size={12} />,
+      'at-risk': <AlertCircle size={12} />,
+      'critical': <Clock size={12} />
+    };
+    return icons[status] || <Clock size={12} />;
   };
 
   const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'HIGH': return 'bg-red-100 text-red-800';
-      case 'MEDIUM': return 'bg-amber-100 text-amber-800';
-      case 'LOW': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+    const colors = {
+      'HIGH': 'bg-red-100 text-red-800',
+      'MEDIUM': 'bg-amber-100 text-amber-800',
+      'LOW': 'bg-blue-100 text-blue-800'
+    };
+    return colors[priority] || 'bg-gray-100 text-gray-800';
   };
 
   const getMatchColor = (score) => {
@@ -106,101 +108,100 @@ const ContractorJobFeed = () => {
     return 'text-gray-600';
   };
 
-  const getMatchBarColor = (score) => {
-    if (score >= 90) return 'bg-emerald-500';
-    if (score >= 80) return 'bg-blue-500';
-    if (score >= 70) return 'bg-amber-500';
-    return 'bg-gray-500';
-  };
-
+  // Action handlers
   const handleSaveJob = (jobId) => {
-    if (savedJobs.includes(jobId)) {
-      setSavedJobs(savedJobs.filter(id => id !== jobId));
-    } else {
-      setSavedJobs([...savedJobs, jobId]);
-    }
+    setSavedJobs(prev => 
+      prev.includes(jobId) 
+        ? prev.filter(id => id !== jobId)
+        : [...prev, jobId]
+    );
   };
 
   const handleApplyJob = (jobId) => {
-    setSelectedJob(jobListings.find(job => job.id === jobId));
-    setShowApplyModal(true);
-  };
-
-  const handleViewDetails = (jobId) => {
-    setSelectedJob(jobListings.find(job => job.id === jobId));
-    setShowJobDetails(true);
+    const job = jobListings.find(job => job.id === jobId);
+    if (job) {
+      setSelectedJob(job);
+      setShowApplyModal(true);
+    }
   };
 
   const handleSubmitApplication = () => {
     if (!selectedJob) return;
-
-    // Add to applied jobs
-    if (!appliedJobs.includes(selectedJob.id)) {
-      setAppliedJobs([...appliedJobs, selectedJob.id]);
-    }
-
-    // In real app, would make API call
+    
+    setAppliedJobs(prev => 
+      prev.includes(selectedJob.id) ? prev : [...prev, selectedJob.id]
+    );
+    
     alert(`Application submitted for ${selectedJob.title}!`);
     navigate('/contractor/jobs?tab=my-applications');
   };
 
-  // Filter jobs based on active tab
+  // Filter jobs
   const filteredJobs = jobListings.filter(job => {
-    if (activeTab === 'my-applications') {
-      return appliedJobs.includes(job.id);
-    }
-    if (activeTab === 'saved') {
-      return savedJobs.includes(job.id);
-    }
-    if (activeTab === 'recommended') {
-      return job.matchScore >= 80;
-    }
-    return true; // 'all' tab
+    if (activeTab === 'my-applications') return appliedJobs.includes(job.id);
+    if (activeTab === 'saved') return savedJobs.includes(job.id);
+    if (activeTab === 'recommended') return job.matchScore >= 80;
+    return true;
   });
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/20 font-sans pb-6">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  // Tab configuration
+  const tabs = [
+    { id: 'all', label: 'All Jobs', count: jobListings.length },
+    { id: 'my-applications', label: 'My Applications', count: appliedJobs.length },
+    { id: 'saved', label: 'Saved Jobs', count: savedJobs.length },
+    { 
+      id: 'recommended', 
+      label: 'Recommended', 
+      count: jobListings.filter(j => j.matchScore >= 80).length 
+    }
+  ];
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading jobs...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Find Work</h1>
-          <p className="text-gray-600">Discover opportunities that match your skills and availability</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Find Work</h1>
+          <p className="text-gray-600">Discover opportunities that match your skills</p>
         </div>
 
         {/* Search and Filter Bar */}
-        <div className="bg-white border border-gray-300 rounded-xl p-4 mb-6">
+        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
           <div className="flex flex-col md:flex-row md:items-center gap-4">
-            {/* Search Bar */}
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <input
                 type="text"
-                placeholder="Search by title, skill, location, company..."
+                placeholder="Search jobs..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-gray-100 border border-transparent rounded-xl focus:bg-white focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500"
               />
             </div>
-
-            {/* Sort Options */}
             <div className="flex items-center gap-4">
               <select
                 value={filters.sortBy}
                 onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
-                className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-sm font-medium"
+                className="px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-sm"
               >
                 <option value="latest">Latest First</option>
                 <option value="budget-high">Budget High → Low</option>
                 <option value="budget-low">Budget Low → High</option>
-                <option value="urgent">Urgent First</option>
-                <option value="match">Best Match</option>
               </select>
-
-              {/* Filter Toggle */}
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="px-4 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 flex items-center gap-2"
+                className="px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
               >
                 <Filter size={18} />
                 <span className="font-medium">Filters</span>
@@ -211,23 +212,20 @@ const ContractorJobFeed = () => {
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6 overflow-x-auto">
-          {[
-            { id: 'all', label: 'All Jobs', count: jobListings.length },
-            { id: 'my-applications', label: 'My Applications', count: appliedJobs.length },
-            { id: 'saved', label: 'Saved Jobs', count: savedJobs.length },
-            { id: 'recommended', label: 'Recommended', count: jobListings.filter(j => j.matchScore >= 80).length }
-          ].map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-3 rounded-xl font-medium whitespace-nowrap flex items-center gap-2 ${activeTab === tab.id
-                ? 'bg-blue-600 text-white'
-                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
+              className={`px-4 py-3 rounded-lg font-medium whitespace-nowrap flex items-center gap-2 ${
+                activeTab === tab.id
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
             >
               {tab.label}
-              <span className={`px-2 py-0.5 rounded-full text-xs ${activeTab === tab.id ? 'bg-white/20' : 'bg-gray-100'
-                }`}>
+              <span className={`px-2 py-0.5 rounded-full text-xs ${
+                activeTab === tab.id ? 'bg-white/20' : 'bg-gray-100'
+              }`}>
                 {tab.count}
               </span>
             </button>
@@ -238,7 +236,7 @@ const ContractorJobFeed = () => {
           {/* Filters Sidebar */}
           {showFilters && (
             <div className="lg:col-span-1">
-              <div className="bg-white border border-gray-300 rounded-xl p-6 sticky top-6">
+              <div className="bg-white border border-gray-200 rounded-lg p-6 sticky top-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="font-bold text-gray-900">Filters</h3>
                   <button
@@ -248,8 +246,6 @@ const ContractorJobFeed = () => {
                       category: '',
                       budgetMin: '',
                       budgetMax: '',
-                      slaUrgency: '',
-                      jobType: '',
                       sortBy: 'latest'
                     })}
                     className="text-sm text-blue-600 hover:text-blue-700"
@@ -267,7 +263,10 @@ const ContractorJobFeed = () => {
                         <input
                           type="checkbox"
                           checked={filters.category === cat}
-                          onChange={(e) => setFilters({ ...filters, category: e.target.checked ? cat : '' })}
+                          onChange={(e) => setFilters({ 
+                            ...filters, 
+                            category: e.target.checked ? cat : '' 
+                          })}
                           className="rounded border-gray-300 text-blue-600"
                         />
                         <span className="ml-2 text-sm text-gray-700">{cat}</span>
@@ -280,26 +279,22 @@ const ContractorJobFeed = () => {
                 <div className="mb-6">
                   <h4 className="font-medium text-gray-900 mb-3">Skills</h4>
                   <div className="space-y-2">
-                    {skills.slice(0, 5).map((skill) => (
+                    {skills.map((skill) => (
                       <label key={skill} className="flex items-center">
                         <input
                           type="checkbox"
                           checked={filters.skills.includes(skill)}
                           onChange={(e) => {
-                            if (e.target.checked) {
-                              setFilters({ ...filters, skills: [...filters.skills, skill] });
-                            } else {
-                              setFilters({ ...filters, skills: filters.skills.filter(s => s !== skill) });
-                            }
+                            const newSkills = e.target.checked
+                              ? [...filters.skills, skill]
+                              : filters.skills.filter(s => s !== skill);
+                            setFilters({ ...filters, skills: newSkills });
                           }}
                           className="rounded border-gray-300 text-blue-600"
                         />
                         <span className="ml-2 text-sm text-gray-700">{skill}</span>
                       </label>
                     ))}
-                    <button className="text-sm text-blue-600 hover:text-blue-700">
-                      + Show more
-                    </button>
                   </div>
                 </div>
 
@@ -315,15 +310,13 @@ const ContractorJobFeed = () => {
                     <option value="Chennai">Chennai</option>
                     <option value="Bangalore">Bangalore</option>
                     <option value="Mumbai">Mumbai</option>
-                    <option value="Hyderabad">Hyderabad</option>
-                    <option value="Delhi">Delhi</option>
                   </select>
                 </div>
 
                 {/* Budget Range */}
                 <div className="mb-6">
-                  <h4 className="font-medium text-gray-900 mb-3">Budget Range</h4>
-                  <div className="flex gap-2 mb-2">
+                  <h4 className="font-medium text-gray-900 mb-3">Budget Range (₹)</h4>
+                  <div className="flex gap-2">
                     <input
                       type="number"
                       placeholder="Min"
@@ -339,47 +332,9 @@ const ContractorJobFeed = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                     />
                   </div>
-                  <div className="text-xs text-gray-500">Enter amount in ₹</div>
                 </div>
 
-                {/* SLA Urgency */}
-                <div className="mb-6">
-                  <h4 className="font-medium text-gray-900 mb-3">SLA Urgency</h4>
-                  <div className="space-y-2">
-                    {['Normal', 'At Risk', 'Emergency'].map((urgency) => (
-                      <label key={urgency} className="flex items-center">
-                        <input
-                          type="radio"
-                          name="urgency"
-                          checked={filters.slaUrgency === urgency.toLowerCase()}
-                          onChange={() => setFilters({ ...filters, slaUrgency: urgency.toLowerCase() })}
-                          className="text-blue-600"
-                        />
-                        <span className="ml-2 text-sm text-gray-700">{urgency}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Job Type */}
-                <div className="mb-6">
-                  <h4 className="font-medium text-gray-900 mb-3">Job Type</h4>
-                  <div className="space-y-2">
-                    {['Planned', 'Emergency', 'Preventive'].map((type) => (
-                      <label key={type} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={filters.jobType === type.toLowerCase()}
-                          onChange={(e) => setFilters({ ...filters, jobType: e.target.checked ? type.toLowerCase() : '' })}
-                          className="rounded border-gray-300 text-blue-600"
-                        />
-                        <span className="ml-2 text-sm text-gray-700">{type}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <button className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium">
+                <button className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">
                   Apply Filters
                 </button>
               </div>
@@ -390,21 +345,21 @@ const ContractorJobFeed = () => {
           <div className={`${showFilters ? 'lg:col-span-3' : 'lg:col-span-4'}`}>
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-white border border-gray-300 rounded-xl p-4">
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
                 <div className="text-sm text-gray-500">Total Jobs</div>
-                <div className="text-2xl font-bold text-gray-900">{jobListings.length}</div>
+                <div className="text-xl font-bold text-gray-900">{jobListings.length}</div>
               </div>
-              <div className="bg-white border border-gray-300 rounded-xl p-4">
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
                 <div className="text-sm text-gray-500">Applied</div>
-                <div className="text-2xl font-bold text-blue-600">{appliedJobs.length}</div>
+                <div className="text-xl font-bold text-blue-600">{appliedJobs.length}</div>
               </div>
-              <div className="bg-white border border-gray-300 rounded-xl p-4">
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
                 <div className="text-sm text-gray-500">Avg. Budget</div>
-                <div className="text-2xl font-bold text-emerald-600">₹4.5L</div>
+                <div className="text-xl font-bold text-emerald-600">₹4.5L</div>
               </div>
-              <div className="bg-white border border-gray-300 rounded-xl p-4">
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
                 <div className="text-sm text-gray-500">Match Rate</div>
-                <div className="text-2xl font-bold text-amber-600">86%</div>
+                <div className="text-xl font-bold text-amber-600">86%</div>
               </div>
             </div>
 
@@ -413,12 +368,13 @@ const ContractorJobFeed = () => {
               {filteredJobs.map((job) => (
                 <div
                   key={job.id}
-                  className={`bg-white border border-gray-300 rounded-xl overflow-hidden hover:border-blue-500 transition-all ${appliedJobs.includes(job.id) ? 'opacity-90' : ''
-                    }`}
+                  className={`bg-white border border-gray-200 rounded-lg overflow-hidden hover:border-blue-300 transition-colors ${
+                    appliedJobs.includes(job.id) ? 'opacity-90' : ''
+                  }`}
                 >
                   {/* Card Header */}
-                  <div className="p-5 border-b border-gray-300">
-                    <div className="flex items-start justify-between mb-3">
+                  <div className="p-4 border-b border-gray-200">
+                    <div className="flex items-start justify-between mb-2">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-bold text-gray-900">{job.title}</h3>
@@ -428,88 +384,40 @@ const ContractorJobFeed = () => {
                               URGENT
                             </span>
                           )}
-                          {job.fastPayout && (
-                            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded">
-                              FAST PAYOUT
-                            </span>
-                          )}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded">
-                            {job.category}
-                          </span>
-                          <span className="text-xs text-gray-500">{job.subCategory}</span>
-                        </div>
+                        <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
+                          {job.category}
+                        </span>
                       </div>
-
-                      {/* Save Button */}
                       <button
                         onClick={() => handleSaveJob(job.id)}
-                        className={`p-2 rounded-lg ${savedJobs.includes(job.id)
-                          ? 'text-red-500 hover:bg-red-50'
-                          : 'text-gray-400 hover:bg-gray-100'
-                          }`}
+                        className={`p-2 rounded-lg ${
+                          savedJobs.includes(job.id)
+                            ? 'text-red-500 hover:bg-red-50'
+                            : 'text-gray-400 hover:bg-gray-100'
+                        }`}
                       >
                         <Heart size={18} fill={savedJobs.includes(job.id) ? 'currentColor' : 'none'} />
                       </button>
                     </div>
 
-                    {/* Location and Status */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1 text-sm text-gray-600">
                         <MapPin size={14} />
                         {job.location}
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${getStatusColor(job.slaStatus)}`}>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${
+                        getStatusColor(job.slaStatus)
+                      }`}>
                         {getStatusIcon(job.slaStatus)}
                         {job.slaStatus === 'on-track' ? 'On time' :
-                          job.slaStatus === 'at-risk' ? 'At risk' : 'Critical'}
+                         job.slaStatus === 'at-risk' ? 'At risk' : 'Critical'}
                       </span>
                     </div>
                   </div>
 
-                  {/* Job Image */}
-                  <div className="h-48 bg-gradient-to-r from-gray-200 to-gray-300 relative overflow-hidden">
-                    {/* Match Score Overlay */}
-                    {job.matchScore >= 80 && (
-                      <div className="absolute top-3 left-3">
-                        <div className="px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-green-500 text-white rounded-lg shadow-sm">
-                          <div className="flex items-center gap-1 text-sm font-bold">
-                            <Zap size={12} />
-                            {job.matchScore}% Match
-                          </div>
-                          <div className="h-1.5 bg-white/30 rounded-full mt-1 overflow-hidden">
-                            <div
-                              className={`h-full ${getMatchBarColor(job.matchScore)}`}
-                              style={{ width: `${job.matchScore}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Stats */}
-                  <div className="p-4 border-b border-gray-300">
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-1">
-                          <Eye size={14} className="text-gray-400" />
-                          <span className="text-gray-600">{job.views} views</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Users size={14} className="text-gray-400" />
-                          <span className="text-gray-600">{job.applications} applications</span>
-                        </div>
-                      </div>
-                      <div className={`text-sm font-bold ${getMatchColor(job.matchScore)}`}>
-                        🔥 Good match for you
-                      </div>
-                    </div>
-                  </div>
-
                   {/* Job Details */}
-                  <div className="p-5">
+                  <div className="p-4">
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div>
                         <div className="text-xs text-gray-500">Budget</div>
@@ -521,7 +429,9 @@ const ContractorJobFeed = () => {
                       </div>
                       <div>
                         <div className="text-xs text-gray-500">Priority</div>
-                        <div className={`px-2 py-1 inline-block rounded text-xs font-bold ${getPriorityColor(job.priority)}`}>
+                        <div className={`px-2 py-1 inline-block rounded text-xs font-bold ${
+                          getPriorityColor(job.priority)
+                        }`}>
                           {job.priority}
                         </div>
                       </div>
@@ -531,42 +441,43 @@ const ContractorJobFeed = () => {
                       </div>
                     </div>
 
-                    {/* Company & Agent */}
-                    <div className="mb-6">
+                    {/* Stats */}
+                    <div className="flex items-center justify-between text-sm mb-4">
                       <div className="flex items-center gap-4">
-                        <div>
-                          <div className="text-xs text-gray-500">Company</div>
-                          <div className="font-medium text-gray-900">{job.company}</div>
+                        <div className="flex items-center gap-1">
+                          <Eye size={14} className="text-gray-400" />
+                          <span className="text-gray-600">{job.views} views</span>
                         </div>
-                        <div>
-                          <div className="text-xs text-gray-500">Agent</div>
-                          <div className="flex items-center gap-1">
-                            <User size={12} className="text-gray-400" />
-                            <span className="font-medium text-gray-900">{job.agent}</span>
-                            <Star size={12} className="text-amber-500 fill-amber-500" />
-                            <span className="text-xs text-gray-600">{job.agentRating}</span>
-                          </div>
+                        <div className="flex items-center gap-1">
+                          <Users size={14} className="text-gray-400" />
+                          <span className="text-gray-600">{job.applications} applied</span>
                         </div>
                       </div>
+                      {job.matchScore >= 80 && (
+                        <div className={`text-sm font-bold ${getMatchColor(job.matchScore)}`}>
+                          <Zap size={14} className="inline mr-1" />
+                          {job.matchScore}% Match
+                        </div>
+                      )}
                     </div>
 
                     {/* Action Buttons */}
                     <div className="flex gap-3">
                       <button
-                        onClick={() => handleViewDetails(job.id)}
-                        className="flex-1 py-2.5 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl font-medium"
+                        onClick={() => navigate(`/contractor/jobs/${job.id}`)}
+                        className="flex-1 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg font-medium"
                       >
                         View Details
                       </button>
                       {appliedJobs.includes(job.id) ? (
-                        <button className="flex-1 py-2.5 bg-emerald-100 text-emerald-700 rounded-xl font-medium flex items-center justify-center gap-2">
+                        <button className="flex-1 py-2 bg-emerald-100 text-emerald-700 rounded-lg font-medium flex items-center justify-center gap-2">
                           <CheckCircle size={16} />
                           Applied
                         </button>
                       ) : (
                         <button
                           onClick={() => handleApplyJob(job.id)}
-                          className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium"
+                          className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
                         >
                           Apply Now
                         </button>
@@ -591,13 +502,11 @@ const ContractorJobFeed = () => {
                       category: '',
                       budgetMin: '',
                       budgetMax: '',
-                      slaUrgency: '',
-                      jobType: '',
                       sortBy: 'latest'
                     });
                     setSearchQuery('');
                   }}
-                  className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium"
+                  className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
                 >
                   Clear all filters
                 </button>
@@ -610,11 +519,11 @@ const ContractorJobFeed = () => {
       {/* Apply Modal */}
       {showApplyModal && selectedJob && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-300">
+          <div className="bg-white rounded-lg max-w-lg w-full">
+            <div className="p-6 border-b border-gray-200">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">Submit Proposal</h3>
+                  <h3 className="text-lg font-bold text-gray-900">Submit Proposal</h3>
                   <p className="text-gray-600 text-sm mt-1">{selectedJob.title}</p>
                 </div>
                 <button
@@ -627,306 +536,70 @@ const ContractorJobFeed = () => {
             </div>
 
             <div className="p-6">
-              {/* Step 1: Quote */}
-              <div className="mb-8">
-                <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm">1</span>
-                  Quote & Pricing
-                </h4>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                      Your Quote (₹)
-                    </label>
-                    <input
-                      type="number"
-                      placeholder="Enter your quote amount"
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
-                    />
-                    <div className="text-xs text-gray-500 mt-1">
-                      Budget: {selectedJob.budget}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                      Breakdown (Optional)
-                    </label>
-                    <textarea
-                      rows="2"
-                      placeholder="Breakdown of labor, materials, etc."
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
-                    />
-                  </div>
+              {/* Quote */}
+              <div className="mb-6">
+                <h4 className="font-bold text-gray-900 mb-3">Quote & Pricing</h4>
+                <input
+                  type="number"
+                  placeholder="Your quote amount (₹)"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none mb-2"
+                />
+                <div className="text-sm text-gray-500">
+                  Budget: {selectedJob.budget}
                 </div>
               </div>
 
-              {/* Step 2: Timeline */}
-              <div className="mb-8">
-                <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm">2</span>
-                  Timeline
-                </h4>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                      Time Estimate
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="number"
-                        placeholder="Days"
-                        className="flex-1 px-3 py-2.5 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
-                      />
-                      <select className="px-3 py-2.5 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
-                        <option>Days</option>
-                        <option>Weeks</option>
-                        <option>Months</option>
-                      </select>
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      Client timeline: {selectedJob.timeline}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                      Start Date
-                    </label>
-                    <input
-                      type="date"
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
-                    />
-                  </div>
+              {/* Timeline */}
+              <div className="mb-6">
+                <h4 className="font-bold text-gray-900 mb-3">Timeline</h4>
+                <input
+                  type="date"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none mb-2"
+                />
+                <div className="text-sm text-gray-500">
+                  Client timeline: {selectedJob.timeline}
                 </div>
               </div>
 
-              {/* Step 3: Proposal */}
-              <div className="mb-8">
-                <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm">3</span>
-                  Proposal Details
-                </h4>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                      Cover Letter / Notes
-                    </label>
-                    <textarea
-                      rows="4"
-                      placeholder="Explain your approach, experience, and why you're the best fit..."
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                      Attach Proposal (Optional)
-                    </label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                      <FileText size={24} className="text-gray-400 mx-auto mb-2" />
-                      <div className="text-sm text-gray-600 mb-1">Drop PDF or click to browse</div>
-                      <div className="text-xs text-gray-500">Max file size: 10MB</div>
-                    </div>
-                  </div>
-                </div>
+              {/* Proposal Details */}
+              <div className="mb-6">
+                <h4 className="font-bold text-gray-900 mb-3">Proposal Details</h4>
+                <textarea
+                  rows="4"
+                  placeholder="Explain your approach and experience..."
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                />
               </div>
 
-              {/* Step 4: Review & Submit */}
-              <div>
-                <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm">4</span>
-                  Review & Submit
-                </h4>
-                <div className="bg-gray-50 border border-gray-300 rounded-lg p-4 mb-6">
-                  <div className="text-sm text-gray-700 mb-2">
+              {/* Review */}
+              <div className="mb-6">
+                <h4 className="font-bold text-gray-900 mb-3">Review</h4>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                  <div className="text-sm text-gray-700">
                     <strong>Job:</strong> {selectedJob.title}
                   </div>
-                  <div className="text-sm text-gray-700 mb-2">
+                  <div className="text-sm text-gray-700 mt-1">
                     <strong>Location:</strong> {selectedJob.location}
                   </div>
-                  <div className="text-sm text-gray-700">
+                  <div className="text-sm text-gray-700 mt-1">
                     <strong>Application ID:</strong> APP-{Date.now().toString().slice(-6)}
                   </div>
                 </div>
-
-                <div className="flex justify-end gap-3">
-                  <button
-                    onClick={() => setShowApplyModal(false)}
-                    className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSubmitApplication}
-                    className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium"
-                  >
-                    Submit Proposal
-                  </button>
-                </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Job Details Modal */}
-      {showJobDetails && selectedJob && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-300">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">Job Details</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded">
-                      {selectedJob.id}
-                    </span>
-                    <span className={`px-2 py-1 text-xs font-bold rounded ${getPriorityColor(selectedJob.priority)}`}>
-                      {selectedJob.priority} PRIORITY
-                    </span>
-                  </div>
-                </div>
+              <div className="flex justify-end gap-3">
                 <button
-                  onClick={() => setShowJobDetails(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg"
+                  onClick={() => setShowApplyModal(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
-                  <X size={20} />
+                  Cancel
                 </button>
-              </div>
-            </div>
-
-            <div className="p-6">
-              {/* Job Header */}
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-3">{selectedJob.title}</h2>
-                <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <div className="flex items-center gap-1">
-                    <MapPin size={14} />
-                    {selectedJob.location}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Briefcase size={14} />
-                    {selectedJob.category} • {selectedJob.subCategory}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Calendar size={14} />
-                    Posted {selectedJob.posted}
-                  </div>
-                </div>
-              </div>
-
-              {/* Job Image */}
-              <div className="h-64 bg-gradient-to-r from-gray-200 to-gray-300 rounded-xl mb-6"></div>
-
-              {/* Quick Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
-                  <div className="text-xs text-gray-500">Budget</div>
-                  <div className="text-lg font-bold text-gray-900">{selectedJob.budget}</div>
-                </div>
-                <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
-                  <div className="text-xs text-gray-500">SLA</div>
-                  <div className="text-lg font-bold text-gray-900">{selectedJob.slaHours} hours</div>
-                </div>
-                <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
-                  <div className="text-xs text-gray-500">Applications</div>
-                  <div className="text-lg font-bold text-gray-900">{selectedJob.applications}</div>
-                </div>
-                <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
-                  <div className="text-xs text-gray-500">Views</div>
-                  <div className="text-lg font-bold text-gray-900">{selectedJob.views}</div>
-                </div>
-              </div>
-
-              {/* Scope & Details */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
-                  <div>
-                    <h4 className="font-bold text-gray-900 mb-3">Scope of Work</h4>
-                    <p className="text-gray-700">{selectedJob.description}</p>
-                  </div>
-
-                  <div>
-                    <h4 className="font-bold text-gray-900 mb-3">Required Skills</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedJob.skills.map((skill, idx) => (
-                        <span key={idx} className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm">
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="font-bold text-gray-900 mb-3">Timeline</h4>
-                    <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
-                      <div className="text-sm text-gray-700">
-                        <strong>Duration:</strong> {selectedJob.timeline}
-                      </div>
-                      <div className="text-sm text-gray-700 mt-1">
-                        <strong>SLA Deadline:</strong> {selectedJob.slaHours} hours from acceptance
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Company & Agent Sidebar */}
-                <div className="space-y-6">
-                  <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
-                    <h4 className="font-bold text-gray-900 mb-3">Company</h4>
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-12 h-12 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center">
-                        <Building size={24} className="text-blue-600" />
-                      </div>
-                      <div>
-                        <div className="font-medium text-gray-900">{selectedJob.company}</div>
-                        <div className="text-sm text-gray-600">Verified Partner</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
-                    <h4 className="font-bold text-gray-900 mb-3">Agent</h4>
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-12 h-12 bg-gradient-to-r from-emerald-100 to-green-100 rounded-full flex items-center justify-center">
-                        <User size={24} className="text-emerald-600" />
-                      </div>
-                      <div>
-                        <div className="font-medium text-gray-900">{selectedJob.agent}</div>
-                        <div className="flex items-center gap-1">
-                          <Star size={12} className="text-amber-500 fill-amber-500" />
-                          <span className="text-sm text-gray-600">{selectedJob.agentRating}/5.0</span>
-                          <span className="text-xs text-blue-600 font-medium ml-2">High Success</span>
-                        </div>
-                      </div>
-                    </div>
-                    <button className="w-full mt-3 px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-sm font-medium">
-                      Contact Agent
-                    </button>
-                  </div>
-
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="font-bold text-gray-900 mb-3">Ready to Apply?</h4>
-                    {appliedJobs.includes(selectedJob.id) ? (
-                      <div className="text-center py-4">
-                        <CheckCircle size={32} className="text-emerald-600 mx-auto mb-2" />
-                        <div className="font-medium text-emerald-700">Application Submitted</div>
-                        <div className="text-sm text-emerald-600">You'll be notified when agent reviews</div>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setShowJobDetails(false);
-                          setShowApplyModal(true);
-                        }}
-                        className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
-                      >
-                        Apply Now
-                      </button>
-                    )}
-                  </div>
-                </div>
+                <button
+                  onClick={handleSubmitApplication}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+                >
+                  Submit Proposal
+                </button>
               </div>
             </div>
           </div>

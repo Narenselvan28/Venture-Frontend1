@@ -17,6 +17,12 @@ const serviceAccountPath = './firebase/serviceAccountKey.json';
 try {
     if (fs.existsSync(serviceAccountPath)) {
         const serviceAccount = require(serviceAccountPath);
+
+        // Fix private key formatting if broken (newlines as literals)
+        if (serviceAccount.private_key && typeof serviceAccount.private_key === 'string') {
+            serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+        }
+
         if (!admin.apps.length) {
             admin.initializeApp({
                 credential: admin.credential.cert(serviceAccount),
@@ -93,7 +99,7 @@ const spawnPythonServer = () => {
         return;
     }
 
-    pythonServer = spawn('python', ['ml_server.py']);
+    pythonServer = spawn('python3', ['ml_server.py']);
 
     pythonServer.stdout.on('data', (data) => {
         console.log(`Python ML: ${data}`);
@@ -101,6 +107,10 @@ const spawnPythonServer = () => {
 
     pythonServer.stderr.on('data', (data) => {
         console.error(`Python ML Error: ${data}`);
+    });
+
+    pythonServer.on('error', (err) => {
+        console.error(`❌ Failed to start Python ML server: ${err.message}`);
     });
 
     pythonServer.on('close', (code) => {
@@ -122,12 +132,27 @@ app.post('/api/ml/analyze-evidence', upload.array('files', 10), async (req, res)
 });
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/venture_db', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-})
-    .then(() => {
-        console.log('✅ MongoDB Connected');
+const startServer = async () => {
+    try {
+        let mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/venture_db';
+        try {
+            await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 5000 });
+            console.log(`✅ MongoDB Connected: ${mongoUri}`);
+        } catch (err) {
+            console.warn(`⚠️ Local MongoDB connection failed: ${err.message}`);
+            console.log('🔄 Attempting to start In-Memory MongoDB...');
+            try {
+                const { MongoMemoryServer } = require('mongodb-memory-server');
+                const mongod = await MongoMemoryServer.create();
+                mongoUri = mongod.getUri();
+                await mongoose.connect(mongoUri);
+                console.log(`✅ In-Memory MongoDB Connected: ${mongoUri}`);
+            } catch (memErr) {
+                console.error('❌ Failed to start In-Memory MongoDB:', memErr);
+                process.exit(1);
+            }
+        }
+
         spawnPythonServer();
         startSlaMonitor();
 
@@ -135,9 +160,12 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/venture_d
         app.listen(PORT, () => {
             console.log(`🚀 Server running on port ${PORT}`);
         });
-    })
-    .catch(err => {
-        console.error('❌ MongoDB Connection Error:', err);
-    });
+
+    } catch (error) {
+        console.error('❌ Server Startup Error:', error);
+    }
+};
+
+startServer();
 
 module.exports = app;

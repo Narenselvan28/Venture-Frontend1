@@ -2,9 +2,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search, Filter, MapPin,
-  Star, CheckCircle, X,
+  Star, X,
   Loader2, AlertTriangle, Target,
-  Building, MapPin as LocationIcon,
+  Building,
   Briefcase, Users, Download, MessageSquare, ChevronDown, ChevronUp,
   FileText, Mail, Phone, ExternalLink, Award, Plus
 } from 'lucide-react';
@@ -115,6 +115,7 @@ const AgentSearch = () => {
     } finally {
       setIsLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch, filters, sortBy]);
 
   // Fetch jobs for invitation

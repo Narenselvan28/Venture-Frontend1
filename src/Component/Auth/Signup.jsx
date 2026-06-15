@@ -2,9 +2,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-    Mail, Lock, Eye, EyeOff, User, Phone, MapPin, Briefcase,
-    Building, Globe, UserCircle, BriefcaseBusiness,
-    Building2, Zap, Factory, Landmark, Package, Case,
+    Mail, Lock, Eye, EyeOff, User, Phone, MapPin,
+    UserCircle, BriefcaseBusiness, Zap,
     ChevronLeft, Target, ShieldCheck, TrendingUp, CheckCircle
 } from 'lucide-react';
 import api from '../../services/api';

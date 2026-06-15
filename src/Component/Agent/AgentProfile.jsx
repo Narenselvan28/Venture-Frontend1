@@ -26,6 +26,7 @@ import {
   Smartphone,
   Activity,
   Download as DownloadIcon,
+  DollarSign, Clock, Bell, Gift
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -512,8 +513,8 @@ const AgentProfile = () => {
                   onClick={handleSaveProfile}
                   disabled={saving}
                   className={`w-full py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 ${saving
-                      ? 'bg-blue-400 cursor-not-allowed'
-                      : 'bg-blue-600 hover:bg-blue-700'
+                    ? 'bg-blue-400 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700'
                     } text-white`}
                 >
                   {saving ? (
@@ -585,8 +586,8 @@ const AgentProfile = () => {
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap transition-colors ${activeTab === tab.id
-                        ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                       }`}
                   >
                     {tab.icon}
@@ -670,10 +671,10 @@ const AgentProfile = () => {
                             <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                               <div
                                 className={`h-full rounded-full ${project.progress === 100
-                                    ? 'bg-emerald-500'
-                                    : project.progress > 50
-                                      ? 'bg-blue-500'
-                                      : 'bg-amber-500'
+                                  ? 'bg-emerald-500'
+                                  : project.progress > 50
+                                    ? 'bg-blue-500'
+                                    : 'bg-amber-500'
                                   }`}
                                 style={{ width: `${project.progress || 0}%` }}
                               />
@@ -870,8 +871,8 @@ const AgentProfile = () => {
                         <button
                           onClick={handleToggleTwoFactor}
                           className={`px-4 py-2 rounded-lg text-sm font-medium ${twoFactorEnabled
-                              ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                              : 'bg-blue-600 text-white hover:bg-blue-700'
+                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                            : 'bg-blue-600 text-white hover:bg-blue-700'
                             }`}
                         >
                           {twoFactorEnabled ? 'Disable' : 'Enable'}

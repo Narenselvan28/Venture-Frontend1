@@ -34,7 +34,6 @@ const stageEvidenceSchema = new mongoose.Schema({
     geoData: {
         coordinates: {
             type: [Number], // [longitude, latitude]
-            index: '2dsphere'
         },
         address: String,
         accuracy: Number,
